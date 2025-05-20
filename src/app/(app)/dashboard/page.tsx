@@ -44,7 +44,7 @@ export default function DashboardPage() {
   const { currentUser, isAdmin } = useAuth();
   const [cases, setCases] = useState<Case[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [subjectFilter, setSubjectFilter] = useState<string>("ALL");
+  const [subjectFilter, setSubjectFilter] = useState<string>("ALL_SUBJECTS_FILTER_KEY");
   const [sortField, setSortField] = useState<SortField>("lastActivityDate");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
@@ -63,7 +63,7 @@ export default function DashboardPage() {
         (c.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
          c.nurej.toLowerCase().includes(searchTerm.toLowerCase()) ||
          c.cause.toLowerCase().includes(searchTerm.toLowerCase())) &&
-        (subjectFilter === "ALL" || c.subject === subjectFilter)
+        (subjectFilter === "ALL_SUBJECTS_FILTER_KEY" || c.subject === subjectFilter)
       );
 
     // Sorting logic
@@ -171,18 +171,20 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
-        <Card className="shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recordatorios Próximos</CardTitle>
-            <BellRing className="h-5 w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.upcomingRemindersCount}</div>
-            <p className="text-xs text-muted-foreground">
-              {isAdmin ? "Recordatorios próximos para todos los casos" : "Sus recordatorios para los próximos días"}
-            </p>
-          </CardContent>
-        </Card>
+        <Link href="/reminders" className="block hover:shadow-lg transition-shadow rounded-lg">
+          <Card className="shadow-md h-full cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Recordatorios Próximos</CardTitle>
+              <BellRing className="h-5 w-5 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.upcomingRemindersCount}</div>
+              <p className="text-xs text-muted-foreground">
+                {isAdmin ? "Recordatorios próximos para todos los casos" : "Sus recordatorios para los próximos días"}
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
         {isAdmin && stats.totalLawyersCount !== undefined && (
           <Card className="shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
