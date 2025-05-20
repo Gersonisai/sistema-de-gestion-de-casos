@@ -4,7 +4,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-// import Image from "next/image"; // Removed Image import
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -21,6 +20,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Por favor ingrese un email válido." }),
@@ -54,7 +54,7 @@ export function LoginForm() {
         title: "Error de Inicio de Sesión",
         description: "Email o contraseña incorrectos. Por favor intente de nuevo.",
       });
-      form.setError("email", { type: "manual", message: " "});
+      form.setError("email", { type: "manual", message: " "}); // Clearer visual for general error
       form.setError("password", { type: "manual", message: "Email o contraseña incorrectos." });
     }
   }
@@ -62,8 +62,7 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-md shadow-xl">
       <CardHeader>
-        {/* Logo Image div removed */}
-        <CardTitle className="text-3xl font-bold text-center mt-4">YASI K'ARI</CardTitle> {/* Added mt-4 for spacing if needed */}
+        <CardTitle className="text-3xl font-bold text-center mt-4">YASI K'ARI</CardTitle>
         <CardDescription className="text-center">
           Ingrese sus credenciales para acceder al sistema.
         </CardDescription>
@@ -107,6 +106,12 @@ export function LoginForm() {
             </Button>
           </form>
         </Form>
+        <div className="mt-6 text-center text-sm">
+          ¿No tiene una cuenta?{" "}
+          <Link href="/register" className="underline text-primary hover:text-primary/80">
+            Regístrese aquí
+          </Link>
+        </div>
       </CardContent>
     </Card>
   );
