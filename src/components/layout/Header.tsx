@@ -49,7 +49,7 @@ export function Header() {
               alt="YASI K'ARI Logo" 
               width={24} 
               height={24} 
-              data-ai-hint="lady justice scales"
+              data-ai-hint="layers icon"
             />
           <span className="sr-only">YASI K'ARI</span>
         </Link>

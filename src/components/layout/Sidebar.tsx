@@ -17,7 +17,7 @@ export function Sidebar() {
                alt="YASI K'ARI Logo" 
                width={28} 
                height={28} 
-               data-ai-hint="lady justice scales"
+               data-ai-hint="layers icon"
              />
             <span className="text-xl">YASI K'ARI</span>
           </Link>
