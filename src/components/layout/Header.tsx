@@ -27,7 +27,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6 shadow-sm">
-      {/* Wrapper for SheetTrigger, md:hidden removed to make it always visible */}
+      {/* Wrapper for SheetTrigger, always visible */}
       <div>
         <Sheet>
           <SheetTrigger asChild>
@@ -36,8 +36,11 @@ export function Header() {
               <span className="sr-only">Abrir/Cerrar menú</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="flex flex-col p-0"> {/* Adjusted padding */}
-            <SheetHeader className="p-4 border-b">
+          <SheetContent 
+            side="left" 
+            className="flex flex-col p-0 bg-sidebar text-sidebar-foreground"
+          >
+            <SheetHeader className="p-4 border-b border-sidebar-border">
               <SheetTitle>Menú Principal</SheetTitle>
             </SheetHeader>
             <SidebarNav isMobile={true} />
@@ -88,3 +91,4 @@ export function Header() {
     </header>
   );
 }
+

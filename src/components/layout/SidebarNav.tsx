@@ -23,7 +23,7 @@ interface SidebarNavProps {
 
 export function SidebarNav({ isMobile = false, className }: SidebarNavProps) {
   const pathname = usePathname();
-  const { isAdmin, currentUser } = useAuth(); // Added currentUser
+  const { isAdmin, currentUser } = useAuth(); 
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -31,27 +31,32 @@ export function SidebarNav({ isMobile = false, className }: SidebarNavProps) {
     ...(isAdmin ? [{ href: "/cases/new", label: "Nuevo Caso", icon: FolderPlus, adminOnly: true }] : []),
     { href: "/reminders", label: "Recordatorios", icon: CalendarCheck },
     ...(isAdmin ? [{ href: "/users", label: "Usuarios", icon: Users, adminOnly: true }] : []),
-    // Conditionally show Settings based on user role as per original intent in Header
     ...(currentUser?.role === "admin" ? [{ href: "/settings", label: "Configuración", icon: Settings }] : []),
   ];
 
   const NavContent = () => (
     <nav className={cn("flex flex-col gap-2 p-4 text-sm font-medium", className)}>
       {navItems.map((item) => {
-        if (!item) return null; // Ensure item is not undefined before rendering
+        if (!item) return null; 
+        const isActive = pathname === item.href;
         return (
           <Button
             key={item.href}
             asChild
-            variant={pathname === item.href ? "secondary" : "ghost"}
+            // The variant prop is less critical here as className overrides will take precedence
+            variant={isActive ? "default" : "ghost"} 
             className={cn(
-              "justify-start",
-              pathname === item.href && "bg-primary/10 text-primary hover:bg-primary/15",
-              !pathname.startsWith(item.href) && "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              "justify-start w-full", // Ensure full width for proper background coverage
+              isActive 
+                ? "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent/90" // Active style for dark sidebar
+                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground", // Inactive style for dark sidebar
+              // Fallback for non-mobile, although sidebar is hidden
+              !isMobile && isActive && "bg-primary/10 text-primary hover:bg-primary/15", // Original active for light bg (less relevant now)
+              !isMobile && !isActive && "text-foreground hover:bg-accent hover:text-accent-foreground" // Original inactive for light bg (less relevant now)
             )}
           >
             <Link href={item.href} className="flex items-center gap-3 rounded-lg px-3 py-2">
-              <item.icon className="h-5 w-5" />
+              <item.icon className={cn("h-5 w-5", isActive ? "text-sidebar-accent-foreground" : "text-sidebar-foreground")} />
               {item.label}
             </Link>
           </Button>
@@ -70,3 +75,4 @@ export function SidebarNav({ isMobile = false, className }: SidebarNavProps) {
     </ScrollArea>
   );
 }
+
