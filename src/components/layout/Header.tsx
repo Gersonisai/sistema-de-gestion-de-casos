@@ -28,7 +28,8 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6 shadow-sm">
-      <div className="md:hidden">
+      {/* Wrapper for SheetTrigger, md:hidden removed to make it always visible */}
+      <div>
         <Sheet>
           <SheetTrigger asChild>
             <Button variant="outline" size="icon">
