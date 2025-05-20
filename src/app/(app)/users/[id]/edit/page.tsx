@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { UserForm } from "@/components/users/UserForm";
 import type { EditUserFormValues } from "@/components/users/UserForm";
@@ -14,26 +14,37 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 function EditUserPageContent() {
-  const params = useParams();
+  const routeParams = useParams();
   const router = useRouter();
   const { isAdmin, isLoading: authIsLoading } = useAuth();
   
   const [currentUserData, setCurrentUserData] = useState<User | null | undefined>(undefined); // undefined for loading, null for not found
-  const [isClientLoading, setIsClientLoading] = useState(true);
+  const [isClientLoading, setIsClientLoading] = useState(true); // Retained for clarity on initial data fetch simulation
 
-  const userId = params.id as string;
+  const userId: string | null = useMemo(() => {
+    return typeof routeParams?.id === 'string' ? routeParams.id : null;
+  }, [routeParams]);
 
   useEffect(() => {
     if (!authIsLoading) {
       if (!isAdmin) {
         router.replace("/dashboard");
-      } else {
-        const foundUser = mockUsers.find((u) => u.id === userId);
-        setCurrentUserData(foundUser || null);
-        setIsClientLoading(false);
+        return;
       }
+      if (!userId) {
+         // If params are available but no valid userId, set to null (not found)
+        if (routeParams && isClientLoading) { // Check isClientLoading to prevent setting to null if params just not ready
+            setCurrentUserData(null);
+        }
+        setIsClientLoading(false); // Done checking, even if no valid id
+        return;
+      }
+      
+      const foundUser = mockUsers.find((u) => u.id === userId);
+      setCurrentUserData(foundUser || null);
+      setIsClientLoading(false);
     }
-  }, [userId, isAdmin, authIsLoading, router]);
+  }, [userId, isAdmin, authIsLoading, router, routeParams, isClientLoading]);
 
 
   const handleSaveUser = async (data: EditUserFormValues, id?: string) => {
@@ -52,7 +63,8 @@ function EditUserPageContent() {
     // Navigation and toast are handled by UserForm
   };
 
-  if (authIsLoading || isClientLoading || currentUserData === undefined) {
+  if (authIsLoading || isClientLoading || (isAdmin && currentUserData === undefined && userId)) {
+    // Show loader if auth is loading, or if client is loading initial user data (and userId is present, meaning we expect data)
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-150px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -66,7 +78,7 @@ function EditUserPageContent() {
         <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
         <h2 className="text-2xl font-semibold">Usuario No Encontrado</h2>
         <p className="text-muted-foreground mt-2">
-          El usuario que está buscando no existe o ha sido eliminado.
+          El usuario que está buscando no existe, no tiene un ID válido en la URL o ha sido eliminado.
         </p>
         <Button asChild className="mt-6">
           <Link href="/users">Volver a Usuarios</Link>
@@ -74,19 +86,27 @@ function EditUserPageContent() {
       </div>
     );
   }
+  
+  // If still loading but it's not an admin or no userId was passed, it might be redirecting, don't render form
+  if (!currentUserData && !isAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-150px)]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
 
   return (
     <div className="container mx-auto py-8">
       <PageHeader title="Editar Usuario" />
-      <UserForm initialData={currentUserData} onSave={handleSaveUser as any} isEditMode={true} />
+      {currentUserData && <UserForm initialData={currentUserData} onSave={handleSaveUser as any} isEditMode={true} />}
     </div>
   );
 }
 
 export default function EditUserPage() {
   return (
-    // Suspense boundary is good practice if any child component uses useSearchParams, etc.
-    // Not strictly necessary here but doesn't hurt.
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-[calc(100vh-150px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

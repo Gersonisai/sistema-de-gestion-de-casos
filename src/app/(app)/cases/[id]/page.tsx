@@ -1,14 +1,14 @@
 
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { CaseForm } from "@/components/cases/CaseForm";
 import type { CaseFormValues } from "@/components/cases/CaseForm";
 import { PageHeader } from "@/components/shared/PageHeader";
 import type { Case } from "@/lib/types";
 import { UserRole } from "@/lib/types";
-import { mockCases, mockUsers } from "@/data/mockData"; // To simulate fetching and updating
+import { mockCases, mockUsers } from "@/data/mockData"; 
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +19,7 @@ import { es } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 
 function CaseDetailPageContent() {
-  const params = useParams();
+  const routeParams = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { currentUser, isAdmin, isLoading: authIsLoading } = useAuth();
@@ -27,13 +27,22 @@ function CaseDetailPageContent() {
   const [currentCase, setCurrentCase] = useState<Case | null | undefined>(undefined); // undefined for loading, null for not found
   const [isEditing, setIsEditing] = useState(searchParams.get('edit') === 'true');
 
-  const caseId = params.id as string;
+  const caseId: string | null = useMemo(() => {
+    return typeof routeParams?.id === 'string' ? routeParams.id : null;
+  }, [routeParams]);
 
   useEffect(() => {
+    if (!caseId) {
+      // If params are available but no valid caseId, set to null (not found)
+      if (routeParams && !authIsLoading && currentCase === undefined) {
+         setCurrentCase(null);
+      }
+      return;
+    }
     // Simulate fetching case data
     const foundCase = mockCases.find((c) => c.id === caseId);
     setCurrentCase(foundCase || null);
-  }, [caseId]);
+  }, [caseId, routeParams, authIsLoading, currentCase]);
 
   useEffect(() => {
     setIsEditing(searchParams.get('edit') === 'true');
@@ -80,7 +89,7 @@ function CaseDetailPageContent() {
         <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
         <h2 className="text-2xl font-semibold">Caso No Encontrado</h2>
         <p className="text-muted-foreground mt-2">
-          El caso que está buscando no existe o ha sido eliminado.
+          El caso que está buscando no existe, no tiene un ID válido en la URL, o ha sido eliminado.
         </p>
         <Button asChild className="mt-6">
           <Link href="/dashboard">Volver al Dashboard</Link>
@@ -136,7 +145,7 @@ function CaseDetailPageContent() {
                 {currentCase.reminders.map(r => (
                   <li key={r.id} className="p-3 border rounded-md bg-muted/50">
                     <p className="font-medium">{r.message}</p>
-                    <p className="text-sm text-muted-foreground">Fecha: {format(parseISO(r.date), "Pp", { locale: es })}</p>
+                    <p className="text-sm text-muted-foreground">Fecha: {format(parseISO(r.date), "Pp HH:mm", { locale: es })}</p>
                   </li>
                 ))}
               </ul>
@@ -174,6 +183,3 @@ export default function CaseDetailPage() {
     </Suspense>
   );
 }
-
-
-    
