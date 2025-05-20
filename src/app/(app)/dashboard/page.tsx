@@ -10,7 +10,7 @@ import type { Case, CaseSubject } from "@/lib/types";
 import { UserRole, CASE_SUBJECTS_OPTIONS } from "@/lib/types";
 import { mockCases as initialMockCases, mockUsers } from "@/data/mockData";
 import { useAuth } from "@/hooks/useAuth";
-import { PlusCircle, Search, Filter, Briefcase, BellRing, Users as UsersIcon } from "lucide-react";
+import { PlusCircle, Search, Filter, Briefcase, BellRing, Users as UsersIcon, ArrowDownUp, ArrowUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -24,32 +24,78 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { isFuture, isToday, parseISO } from "date-fns";
 
+type SortField = "lastActivityDate" | "clientName" | "nurej" | "createdAt";
+type SortDirection = "asc" | "desc";
+
+const sortOptions: { value: SortField; label: string }[] = [
+  { value: "lastActivityDate", label: "Fecha Última Actividad" },
+  { value: "clientName", label: "Nombre Cliente" },
+  { value: "nurej", label: "NUREJ" },
+  { value: "createdAt", label: "Fecha Creación" },
+];
+
+const sortDirectionOptions: { value: SortDirection; label: string }[] = [
+  { value: "desc", label: "Descendente" },
+  { value: "asc", label: "Ascendente" },
+];
+
 
 export default function DashboardPage() {
   const { currentUser, isAdmin } = useAuth();
   const [cases, setCases] = useState<Case[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [subjectFilter, setSubjectFilter] = useState<string>("ALL"); 
+  const [subjectFilter, setSubjectFilter] = useState<string>("ALL");
+  const [sortField, setSortField] = useState<SortField>("lastActivityDate");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   useEffect(() => {
     let userCases = initialMockCases;
     if (currentUser?.role === UserRole.LAWYER) {
       userCases = initialMockCases.filter(c => c.assignedLawyerId === currentUser.id);
     }
-    userCases.sort((a, b) => new Date(b.lastActivityDate).getTime() - new Date(a.lastActivityDate).getTime());
+    // Initial sort can be removed here, as it's handled by filteredCases
     setCases(userCases);
   }, [currentUser]);
 
   const filteredCases = useMemo(() => {
-    return cases
+    let sortedCases = [...cases]
       .filter(c => 
         (c.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
          c.nurej.toLowerCase().includes(searchTerm.toLowerCase()) ||
          c.cause.toLowerCase().includes(searchTerm.toLowerCase())) &&
         (subjectFilter === "ALL" || c.subject === subjectFilter)
-      )
-      .sort((a, b) => new Date(b.lastActivityDate).getTime() - new Date(a.lastActivityDate).getTime());
-  }, [cases, searchTerm, subjectFilter]);
+      );
+
+    // Sorting logic
+    sortedCases.sort((a, b) => {
+      let valA, valB;
+
+      switch (sortField) {
+        case "clientName":
+        case "nurej":
+          valA = a[sortField].toLowerCase();
+          valB = b[sortField].toLowerCase();
+          break;
+        case "lastActivityDate":
+        case "createdAt":
+          valA = new Date(a[sortField]).getTime();
+          valB = new Date(b[sortField]).getTime();
+          break;
+        default: // Should not happen
+          return 0;
+      }
+
+      if (valA < valB) {
+        return sortDirection === "asc" ? -1 : 1;
+      }
+      if (valA > valB) {
+        return sortDirection === "asc" ? 1 : -1;
+      }
+      return 0;
+    });
+    
+    return sortedCases;
+  }, [cases, searchTerm, subjectFilter, sortField, sortDirection]);
 
   const stats = useMemo(() => {
     const isUserAdmin = isAdmin;
@@ -189,9 +235,9 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Filters and Search Section */}
+      {/* Filters, Search, and Sort Section */}
       <div className="mb-6 p-4 border rounded-lg bg-card shadow">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
@@ -209,9 +255,35 @@ export default function DashboardPage() {
                 <SelectValue placeholder="Filtrar por materia" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">Todas las Materias</SelectItem>
+                <SelectItem value="ALL_SUBJECTS_FILTER_KEY">Todas las Materias</SelectItem>
                 {CASE_SUBJECTS_OPTIONS.map(subject => (
                   <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Select value={sortField} onValueChange={(value) => setSortField(value as SortField)}>
+              <SelectTrigger className="w-full">
+                <ArrowUpDown className="mr-2 h-5 w-5 text-muted-foreground" />
+                <SelectValue placeholder="Ordenar por" />
+              </SelectTrigger>
+              <SelectContent>
+                {sortOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Select value={sortDirection} onValueChange={(value) => setSortDirection(value as SortDirection)}>
+              <SelectTrigger className="w-full">
+                <ArrowDownUp className="mr-2 h-5 w-5 text-muted-foreground" />
+                <SelectValue placeholder="Dirección" />
+              </SelectTrigger>
+              <SelectContent>
+                {sortDirectionOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
