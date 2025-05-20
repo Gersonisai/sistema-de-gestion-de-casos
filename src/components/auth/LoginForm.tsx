@@ -44,7 +44,7 @@ export function LoginForm() {
     const success = await login(values.email, values.password);
     setIsLoading(false);
     if (success) {
-      toast({ title: "Inicio de Sesión Exitoso", description: "Bienvenido a LexCase Manager." });
+      toast({ title: "Inicio de Sesión Exitoso", description: "Bienvenido a KariGest." });
       router.push("/dashboard");
     } else {
       toast({
@@ -67,7 +67,7 @@ export function LoginForm() {
                 <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
         </div>
-        <CardTitle className="text-3xl font-bold text-center">LexCase Manager</CardTitle>
+        <CardTitle className="text-3xl font-bold text-center">KariGest</CardTitle>
         <CardDescription className="text-center">
           Ingrese sus credenciales para acceder al sistema.
         </CardDescription>

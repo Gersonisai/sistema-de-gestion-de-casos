@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'LexCase Manager',
+  title: 'KariGest',
   description: 'Gestión de Casos Legales',
 };
 
