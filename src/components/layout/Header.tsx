@@ -49,7 +49,9 @@ export function Header() {
             </svg>
           <span className="sr-only">YASI K'ARI</span>
         </Link>
-        <h1 className="text-xl font-semibold ml-2">YASI K'ARI</h1>
+        <Link href="/dashboard" className="text-xl font-semibold ml-2 hover:text-primary transition-colors">
+          YASI K'ARI
+        </Link>
         <div className="ml-auto flex items-center gap-2">
           <Button variant="ghost" size="icon" className="rounded-full">
             <Bell className="h-5 w-5" />
