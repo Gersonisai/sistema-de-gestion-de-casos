@@ -7,10 +7,10 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CalendarCheck, Loader2, AlertTriangle, ExternalLink } from "lucide-react";
+import { CalendarCheck, Loader2, AlertTriangle, ExternalLink, UserSquare } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { mockCases } from "@/data/mockData";
-import type { Reminder, Case } from "@/lib/types";
+import { mockCases, mockUsers } from "@/data/mockData";
+import type { Reminder, Case, User } from "@/lib/types";
 import { UserRole } from "@/lib/types";
 import { format, parseISO, isToday, isFuture } from "date-fns";
 import { es } from "date-fns/locale/es";
@@ -19,6 +19,7 @@ interface ExtendedReminder extends Reminder {
   caseId: string;
   caseClientName: string;
   caseNurej: string;
+  assignedLawyerName?: string; // Added for admin view
 }
 
 export default function RemindersPage() {
@@ -48,12 +49,19 @@ export default function RemindersPage() {
 
     const extractedReminders: ExtendedReminder[] = [];
     relevantCases.forEach(c => {
+      let lawyerName: string | undefined = undefined;
+      if (isAdmin && c.assignedLawyerId) {
+        const lawyer = mockUsers.find(u => u.id === c.assignedLawyerId);
+        lawyerName = lawyer?.name;
+      }
+
       c.reminders.forEach(r => {
         extractedReminders.push({
           ...r,
           caseId: c.id,
           caseClientName: c.clientName,
           caseNurej: c.nurej,
+          assignedLawyerName: lawyerName,
         });
       });
     });
@@ -121,13 +129,21 @@ export default function RemindersPage() {
                       <p className="text-sm text-muted-foreground">
                         Fecha: {format(parseISO(reminder.date), "EEEE, dd 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
                       </p>
-                      <div className="mt-2 flex justify-between items-center text-sm">
+                      <div className="mt-2 space-y-1 text-sm">
                         <p className="text-muted-foreground">
                           Caso: <Link href={`/cases/${reminder.caseId}`} className="text-accent hover:underline font-medium">{reminder.caseClientName}</Link> ({reminder.caseNurej})
                         </p>
+                        {isAdmin && reminder.assignedLawyerName && (
+                           <p className="text-muted-foreground flex items-center">
+                             <UserSquare className="mr-2 h-4 w-4 text-muted-foreground" />
+                             Abogado: {reminder.assignedLawyerName}
+                           </p>
+                        )}
+                      </div>
+                      <div className="mt-3 flex justify-end items-center">
                         <Button variant="outline" size="sm" asChild>
                            <Link href={`/cases/${reminder.caseId}#reminders`}>
-                             Ver Caso <ExternalLink className="ml-2 h-3 w-3"/>
+                             Ver Detalles del Caso <ExternalLink className="ml-2 h-3 w-3"/>
                            </Link>
                         </Button>
                       </div>
@@ -166,13 +182,21 @@ export default function RemindersPage() {
                       <p className="text-xs text-muted-foreground">
                         Fecha: {format(parseISO(reminder.date), "EEEE, dd 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
                       </p>
-                       <div className="mt-2 flex justify-between items-center text-sm">
+                      <div className="mt-2 space-y-1 text-sm">
                         <p className="text-muted-foreground">
                           Caso: <Link href={`/cases/${reminder.caseId}`} className="text-accent hover:underline font-medium">{reminder.caseClientName}</Link> ({reminder.caseNurej})
                         </p>
+                        {isAdmin && reminder.assignedLawyerName && (
+                           <p className="text-muted-foreground flex items-center">
+                             <UserSquare className="mr-2 h-4 w-4 text-muted-foreground" />
+                             Abogado: {reminder.assignedLawyerName}
+                           </p>
+                        )}
+                      </div>
+                       <div className="mt-3 flex justify-end items-center">
                          <Button variant="ghost" size="sm" asChild>
                            <Link href={`/cases/${reminder.caseId}#reminders`}>
-                             Ver Caso <ExternalLink className="ml-2 h-3 w-3"/>
+                             Ver Detalles del Caso <ExternalLink className="ml-2 h-3 w-3"/>
                            </Link>
                         </Button>
                       </div>
