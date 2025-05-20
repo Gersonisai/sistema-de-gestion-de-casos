@@ -7,7 +7,6 @@ import {
   Bell,
   LogOut,
   Menu,
-  Settings,
   UserCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,12 +18,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarNav } from "./SidebarNav"; 
 
 export function Header() {
-  const { currentUser, logout, isAdmin } = useAuth();
+  const { currentUser, logout } = useAuth();
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6 shadow-sm">
@@ -37,7 +36,10 @@ export function Header() {
               <span className="sr-only">Abrir/Cerrar menú</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="flex flex-col p-0 pt-6">
+          <SheetContent side="left" className="flex flex-col p-0"> {/* Adjusted padding */}
+            <SheetHeader className="p-4 border-b">
+              <SheetTitle>Menú Principal</SheetTitle>
+            </SheetHeader>
             <SidebarNav isMobile={true} />
           </SheetContent>
         </Sheet>
@@ -75,7 +77,6 @@ export function Header() {
                 <p className="text-xs text-muted-foreground font-normal">{currentUser?.email}</p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {/* Removed settings link from user dropdown, keeping it in sidebar logic */}
               <DropdownMenuItem onClick={logout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Cerrar Sesión
