@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'KariGest',
+  title: 'YASI K\'ARI',
   description: 'Gestión de Casos Legales',
 };
 

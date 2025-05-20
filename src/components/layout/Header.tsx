@@ -47,9 +47,9 @@ export function Header() {
                 <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-          <span className="sr-only">KariGest</span>
+          <span className="sr-only">YASI K'ARI</span>
         </Link>
-        <h1 className="text-xl font-semibold ml-2">KariGest</h1>
+        <h1 className="text-xl font-semibold ml-2">YASI K'ARI</h1>
         <div className="ml-auto flex items-center gap-2">
           <Button variant="ghost" size="icon" className="rounded-full">
             <Bell className="h-5 w-5" />
