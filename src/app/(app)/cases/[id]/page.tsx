@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
@@ -128,21 +129,21 @@ function CaseDetailPageContent() {
             <div><strong className="text-muted-foreground">Fecha de Creación:</strong><p>{format(parseISO(currentCase.createdAt), "PPPp", { locale: es })}</p></div>
           </div>
 
-          <div className="pt-4 border-t">
+          <div className="pt-4 border-t" id="reminders">
             <h3 className="text-lg font-semibold mb-2">Recordatorios</h3>
             {currentCase.reminders.length > 0 ? (
               <ul className="space-y-2">
                 {currentCase.reminders.map(r => (
                   <li key={r.id} className="p-3 border rounded-md bg-muted/50">
                     <p className="font-medium">{r.message}</p>
-                    <p className="text-sm text-muted-foreground">Fecha: {format(parseISO(r.date), "PPP", { locale: es })}</p>
+                    <p className="text-sm text-muted-foreground">Fecha: {format(parseISO(r.date), "Pp", { locale: es })}</p>
                   </li>
                 ))}
               </ul>
             ) : <p className="text-muted-foreground">No hay recordatorios.</p>}
           </div>
 
-          <div className="pt-4 border-t">
+          <div className="pt-4 border-t" id="documents">
             <h3 className="text-lg font-semibold mb-2">Documentos (Enlaces OneDrive)</h3>
             {currentCase.documentLinks.length > 0 ? (
               <ul className="space-y-2">
@@ -174,3 +175,5 @@ export default function CaseDetailPage() {
   );
 }
 
+
+    
