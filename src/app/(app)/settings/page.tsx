@@ -18,16 +18,33 @@ export default function SettingsPage() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState("default");
   const [isCheckingPermission, setIsCheckingPermission] = useState(true);
+  const [isSubscribing, setIsSubscribing] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
+    if (typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator) {
       setNotificationPermission(Notification.permission);
-      setNotificationsEnabled(Notification.permission === "granted");
+      if (Notification.permission === "granted") {
+        // Verificar si ya existe una suscripción
+        navigator.serviceWorker.ready.then(registration => {
+          registration.pushManager.getSubscription().then(subscription => {
+            if (subscription) {
+              setNotificationsEnabled(true);
+            } else {
+              setNotificationsEnabled(false);
+            }
+            setIsCheckingPermission(false);
+          });
+        });
+      } else {
+        setNotificationsEnabled(false);
+        setIsCheckingPermission(false);
+      }
     } else {
-      // Notifications API not supported
-      setNotificationPermission("denied"); // Treat as denied if not supported
+      // Notifications API no soportada
+      setNotificationPermission("denied"); // Tratar como denegado si no es soportado
+      setNotificationsEnabled(false);
+      setIsCheckingPermission(false);
     }
-    setIsCheckingPermission(false);
   }, []);
 
   const handleThemeChange = (newTheme: string) => {
@@ -39,87 +56,97 @@ export default function SettingsPage() {
     // TODO: Implement theme changing logic (e.g., class on HTML, localStorage)
   };
 
-  const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) {
-      toast({
-        variant: "destructive",
-        title: "Navegador no compatible",
-        description: "Este navegador no soporta notificaciones push.",
-      });
-      setNotificationsEnabled(false);
-      return;
+  const subscribeToPushNotifications = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      toast({ variant: "destructive", title: "Navegador no compatible", description: "Push Notifications no soportadas." });
+      return null;
     }
-
-    if (notificationPermission === 'granted') {
-      setNotificationsEnabled(true);
-      toast({
-        title: "Notificaciones ya habilitadas",
-        description: "Ya has concedido permiso para las notificaciones.",
-      });
-      return;
-    }
-
-    if (notificationPermission === 'denied') {
-      toast({
-        variant: "destructive",
-        title: "Permiso Bloqueado",
-        description: "Has bloqueado las notificaciones. Debes habilitarlas en la configuración de tu navegador.",
-      });
-      setNotificationsEnabled(false);
-      return;
-    }
-
-    // 'default' state, request permission
     try {
-      const permission = await Notification.requestPermission();
-      setNotificationPermission(permission);
-      if (permission === "granted") {
-        setNotificationsEnabled(true);
-        toast({
-          title: "¡Notificaciones Habilitadas!",
-          description: "Ahora recibirás notificaciones de YASI K'ARI.",
-        });
-        // Aquí es donde, en una app completa, enviarías el token de suscripción a tu backend
-        // navigator.serviceWorker.ready.then(registration => {
-        //   registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: 'YOUR_VAPID_PUBLIC_KEY' })
-        //     .then(subscription => {
-        //       console.log('Suscripción Push exitosa:', subscription);
-        //       // TODO: Enviar la suscripción (subscription object) a tu servidor backend
-        //     })
-        //     .catch(err => console.error('Error al suscribir a Push:', err));
-        // });
-      } else {
-        setNotificationsEnabled(false);
-        toast({
-          variant: "destructive",
-          title: "Permiso Denegado",
-          description: "No has concedido permiso para las notificaciones.",
-        });
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        console.log('Ya existe una suscripción Push:', subscription);
+        return subscription;
       }
-    } catch (error) {
-      console.error("Error solicitando permiso de notificación:", error);
-      setNotificationsEnabled(false);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Ocurrió un error al solicitar permiso para notificaciones.",
+
+      // TODO: Reemplaza 'YOUR_VAPID_PUBLIC_KEY' con tu clave pública VAPID real obtenida de Firebase u otro servicio.
+      // Esta clave es necesaria para que el servidor de push identifique tu aplicación.
+      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'YOUR_VAPID_PUBLIC_KEY_PLACEHOLDER';
+      if (vapidPublicKey === 'YOUR_VAPID_PUBLIC_KEY_PLACEHOLDER') {
+        console.warn("Clave VAPID pública no configurada. Las suscripciones Push podrían fallar o no funcionar correctamente en producción.");
+      }
+
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: vapidPublicKey,
       });
+      console.log('Suscripción Push exitosa:', subscription);
+      console.log('Este es el objeto de suscripción que debes enviar a tu backend:', JSON.stringify(subscription));
+      // TODO: Enviar la suscripción (subscription.toJSON()) a tu servidor backend para almacenarla.
+      // Ejemplo: await fetch('/api/subscribe-push', { method: 'POST', body: JSON.stringify(subscription), headers: {'Content-Type': 'application/json'} });
+      return subscription;
+    } catch (err) {
+      console.error('Error al suscribir a Push Notifications:', err);
+      toast({ variant: "destructive", title: "Error de Suscripción", description: "No se pudo suscribir a notificaciones." });
+      return null;
     }
   };
 
-  const handleNotificationsToggle = async (enabled: boolean) => {
-    if (enabled) {
-      await requestNotificationPermission();
-    } else {
-      // Si el usuario desactiva el switch, simplemente actualizamos el estado
-      // No podemos "revocar" el permiso 'granted' desde JS.
-      // El usuario tendría que hacerlo desde la configuración del navegador.
-      setNotificationsEnabled(false);
-      toast({
-        title: "Notificaciones Deshabilitadas",
-        description: "Ya no se intentará mostrar notificaciones (si el permiso estaba concedido, sigue estándolo a nivel de navegador).",
-      });
+  const unsubscribeFromPushNotifications = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        await subscription.unsubscribe();
+        console.log('Suscripción Push eliminada.');
+        // TODO: Notificar al backend para eliminar la suscripción de la base de datos.
+        // Ejemplo: await fetch('/api/unsubscribe-push', { method: 'POST', body: JSON.stringify({ endpoint: subscription.endpoint }), headers: {'Content-Type': 'application/json'} });
+        toast({ title: "Suscripción Cancelada", description: "Ya no recibirás notificaciones push." });
+      }
+    } catch (err) {
+      console.error('Error al cancelar suscripción Push:', err);
+      toast({ variant: "destructive", title: "Error", description: "No se pudo cancelar la suscripción a notificaciones." });
     }
+  };
+
+
+  const handleNotificationsToggle = async (enabled: boolean) => {
+    setIsSubscribing(true);
+    if (enabled) {
+      if (notificationPermission === 'granted') {
+        const sub = await subscribeToPushNotifications();
+        if (sub) {
+          setNotificationsEnabled(true);
+          toast({ title: "Notificaciones Habilitadas", description: "Ya estás suscrito para recibir notificaciones." });
+        } else {
+          setNotificationsEnabled(false); // Falló la suscripción
+        }
+      } else if (notificationPermission === 'default') {
+        const permission = await Notification.requestPermission();
+        setNotificationPermission(permission);
+        if (permission === "granted") {
+          const sub = await subscribeToPushNotifications();
+          if (sub) {
+            setNotificationsEnabled(true);
+            toast({ title: "¡Notificaciones Habilitadas!", description: "Ahora recibirás notificaciones de YASI K'ARI." });
+          } else {
+            setNotificationsEnabled(false);
+          }
+        } else {
+          setNotificationsEnabled(false);
+          toast({ variant: "destructive", title: "Permiso Denegado", description: "No has concedido permiso para las notificaciones." });
+        }
+      } else { // denied
+        setNotificationsEnabled(false);
+        toast({ variant: "destructive", title: "Permiso Bloqueado", description: "Has bloqueado las notificaciones. Debes habilitarlas en la configuración de tu navegador." });
+      }
+    } else {
+      // Deshabilitar: cancelar suscripción
+      await unsubscribeFromPushNotifications();
+      setNotificationsEnabled(false);
+    }
+    setIsSubscribing(false);
   };
 
   return (
@@ -166,7 +193,7 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div className="flex items-center">
               <Bell className="mr-3 h-5 w-5 text-muted-foreground" />
-              <h3 className="text-lg font-medium">Preferencias de Notificación</h3>
+              <h3 className="text-lg font-medium">Preferencias de Notificación Push</h3>
             </div>
             {isCheckingPermission ? (
                  <p className="text-sm text-muted-foreground">Comprobando permisos de notificación...</p>
@@ -177,16 +204,17 @@ export default function SettingsPage() {
                   Habilitar Notificaciones Push
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  {notificationPermission === 'granted' && 'Permiso concedido. Recibirás notificaciones.'}
+                  {notificationPermission === 'granted' && notificationsEnabled && 'Suscrito. Recibirás notificaciones.'}
+                  {notificationPermission === 'granted' && !notificationsEnabled && 'Permiso concedido, pero no suscrito. Activa para suscribirte.'}
                   {notificationPermission === 'denied' && 'Permiso bloqueado por el navegador.'}
                   {notificationPermission === 'default' && 'Permite recibir alertas sobre actividad importante.'}
                 </p>
               </div>
               <Switch
                 id="notifications-switch"
-                checked={notificationsEnabled && notificationPermission === 'granted'}
+                checked={notificationsEnabled}
                 onCheckedChange={handleNotificationsToggle}
-                disabled={notificationPermission === 'denied' || isCheckingPermission}
+                disabled={notificationPermission === 'denied' || isCheckingPermission || isSubscribing}
                 aria-label="Habilitar notificaciones push"
               />
             </div>
@@ -199,7 +227,7 @@ export default function SettingsPage() {
                 </p>
               </div>
             )}
-            {typeof window !== 'undefined' && !('Notification' in window) && (
+            {typeof window !== 'undefined' && !('Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window) && (
                  <div className="flex items-start p-3 rounded-md border border-destructive/50 bg-destructive/10 text-destructive">
                     <AlertTriangle className="h-5 w-5 mr-2 mt-0.5" />
                     <p className="text-xs">
@@ -213,3 +241,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+
