@@ -4,7 +4,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import Image from "next/image";
+// import Image from "next/image"; // Removed Image import
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -62,16 +62,8 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-md shadow-xl">
       <CardHeader>
-        <div className="flex justify-center mb-4">
-            <Image 
-              src="https://placehold.co/48x48.png" 
-              alt="YASI K'ARI Logo" 
-              width={48} 
-              height={48}
-              data-ai-hint="layers icon" 
-            />
-        </div>
-        <CardTitle className="text-3xl font-bold text-center">YASI K'ARI</CardTitle>
+        {/* Logo Image div removed */}
+        <CardTitle className="text-3xl font-bold text-center mt-4">YASI K'ARI</CardTitle> {/* Added mt-4 for spacing if needed */}
         <CardDescription className="text-center">
           Ingrese sus credenciales para acceder al sistema.
         </CardDescription>

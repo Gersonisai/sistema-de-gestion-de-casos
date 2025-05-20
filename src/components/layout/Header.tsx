@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+// import Image from "next/image"; // Removed Image import
 import {
   Bell,
   LogOut,
@@ -49,17 +49,8 @@ export function Header() {
       </div>
 
       <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
-        <Link href="/dashboard" className="flex items-center gap-2 text-lg font-semibold md:text-base">
-            <Image 
-              src="https://placehold.co/24x24.png" 
-              alt="YASI K'ARI Logo" 
-              width={24} 
-              height={24} 
-              data-ai-hint="layers icon"
-            />
-          <span className="sr-only">YASI K'ARI</span>
-        </Link>
-        <Link href="/dashboard" className="text-xl font-semibold ml-2 hover:text-primary transition-colors">
+        {/* Logo Image Link removed */}
+        <Link href="/dashboard" className="text-xl font-semibold hover:text-primary transition-colors">
           YASI K'ARI
         </Link>
         <div className="ml-auto flex items-center gap-2">
@@ -91,4 +82,3 @@ export function Header() {
     </header>
   );
 }
-

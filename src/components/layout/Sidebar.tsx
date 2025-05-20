@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+// import Image from "next/image"; // Removed Image import
 import { SidebarNav } from "./SidebarNav";
 import { Separator } from "@/components/ui/separator";
 
@@ -11,14 +11,8 @@ export function Sidebar() {
     <aside className="hidden border-r bg-sidebar md:hidden text-sidebar-foreground shadow-lg">
       <div className="flex h-full max-h-screen flex-col gap-2">
         <div className="flex h-16 items-center border-b px-6">
-          <Link href="/dashboard" className="flex items-center gap-2 font-semibold text-sidebar-primary-foreground">
-             <Image 
-               src="https://placehold.co/28x28.png" 
-               alt="YASI K'ARI Logo" 
-               width={28} 
-               height={28} 
-               data-ai-hint="layers icon"
-             />
+          <Link href="/dashboard" className="font-semibold text-sidebar-primary-foreground">
+             {/* Image component removed */}
             <span className="text-xl">YASI K'ARI</span>
           </Link>
         </div>
