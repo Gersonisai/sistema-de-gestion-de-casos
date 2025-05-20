@@ -19,9 +19,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 interface SidebarNavProps {
   isMobile?: boolean;
   className?: string;
+  onLinkClick?: () => void; // New prop to handle link clicks
 }
 
-export function SidebarNav({ isMobile = false, className }: SidebarNavProps) {
+export function SidebarNav({ isMobile = false, className, onLinkClick }: SidebarNavProps) {
   const pathname = usePathname();
   const { isAdmin, currentUser } = useAuth(); 
 
@@ -31,8 +32,14 @@ export function SidebarNav({ isMobile = false, className }: SidebarNavProps) {
     ...(isAdmin ? [{ href: "/cases/new", label: "Nuevo Caso", icon: FolderPlus, adminOnly: true }] : []),
     { href: "/reminders", label: "Recordatorios", icon: CalendarCheck },
     ...(isAdmin ? [{ href: "/users", label: "Usuarios", icon: Users, adminOnly: true }] : []),
-    ...(currentUser?.role === "admin" ? [{ href: "/settings", label: "Configuración", icon: Settings }] : []),
+    ...(isAdmin ? [{ href: "/settings", label: "Configuración", icon: Settings }] : []), // Changed from currentUser.role === "admin"
   ];
+
+  const handleItemClick = () => {
+    if (isMobile && onLinkClick) {
+      onLinkClick();
+    }
+  };
 
   const NavContent = () => (
     <nav className={cn("flex flex-col gap-2 p-4 text-sm font-medium", className)}>
@@ -43,17 +50,16 @@ export function SidebarNav({ isMobile = false, className }: SidebarNavProps) {
           <Button
             key={item.href}
             asChild
-            // The variant prop is less critical here as className overrides will take precedence
             variant={isActive ? "default" : "ghost"} 
             className={cn(
-              "justify-start w-full", // Ensure full width for proper background coverage
+              "justify-start w-full",
               isActive 
-                ? "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent/90" // Active style for dark sidebar
-                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground", // Inactive style for dark sidebar
-              // Fallback for non-mobile, although sidebar is hidden
-              !isMobile && isActive && "bg-primary/10 text-primary hover:bg-primary/15", // Original active for light bg (less relevant now)
-              !isMobile && !isActive && "text-foreground hover:bg-accent hover:text-accent-foreground" // Original inactive for light bg (less relevant now)
+                ? "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent/90"
+                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              !isMobile && isActive && "bg-primary/10 text-primary hover:bg-primary/15", 
+              !isMobile && !isActive && "text-foreground hover:bg-accent hover:text-accent-foreground" 
             )}
+            onClick={handleItemClick} // Call handleItemClick on button click
           >
             <Link href={item.href} className="flex items-center gap-3 rounded-lg px-3 py-2">
               <item.icon className={cn("h-5 w-5", isActive ? "text-sidebar-accent-foreground" : "text-sidebar-foreground")} />
@@ -75,4 +81,3 @@ export function SidebarNav({ isMobile = false, className }: SidebarNavProps) {
     </ScrollArea>
   );
 }
-

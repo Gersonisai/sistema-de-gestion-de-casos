@@ -2,7 +2,6 @@
 "use client";
 
 import Link from "next/link";
-// import Image from "next/image"; // Removed Image import
 import {
   Bell,
   LogOut,
@@ -21,15 +20,21 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarNav } from "./SidebarNav"; 
+import { useState } from "react";
 
 export function Header() {
   const { currentUser, logout } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleMobileLinkClick = () => {
+    setIsMobileMenuOpen(false);
+  };
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6 shadow-sm">
       {/* Wrapper for SheetTrigger, always visible */}
       <div>
-        <Sheet>
+        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
             <Button variant="outline" size="icon">
               <Menu className="h-5 w-5" />
@@ -43,13 +48,12 @@ export function Header() {
             <SheetHeader className="p-4 border-b border-sidebar-border">
               <SheetTitle>Menú Principal</SheetTitle>
             </SheetHeader>
-            <SidebarNav isMobile={true} />
+            <SidebarNav isMobile={true} onLinkClick={handleMobileLinkClick} />
           </SheetContent>
         </Sheet>
       </div>
 
       <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
-        {/* Logo Image Link removed */}
         <Link href="/dashboard" className="text-xl font-semibold hover:text-primary transition-colors">
           YASI K'ARI
         </Link>
