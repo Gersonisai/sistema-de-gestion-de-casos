@@ -35,8 +35,10 @@ import React, { useState } from "react";
 import { ReminderForm } from "./ReminderForm";
 import { DocumentLinkForm } from "./DocumentLinkForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
 
-const UNASSIGNED_LAWYER_VALUE = "UNASSIGNED_LAWYER_VALUE_KEY";
+const UNASSIGNED_LAWYER_VALUE = "UNASSIGNED_LAWYER_VALUE_KEY_NO_EMPTY";
 
 const caseFormSchema = z.object({
   nurej: z.string().min(1, "NUREJ es requerido."),
@@ -79,7 +81,7 @@ export function CaseForm({ initialData, onSave, onDelete }: CaseFormProps) {
           processStage: initialData.processStage,
           nextActivity: initialData.nextActivity,
           subject: initialData.subject,
-          assignedLawyerId: initialData.assignedLawyerId || "", // Empty string means placeholder will show
+          assignedLawyerId: initialData.assignedLawyerId || UNASSIGNED_LAWYER_VALUE, 
         }
       : {
           nurej: "",
@@ -88,7 +90,7 @@ export function CaseForm({ initialData, onSave, onDelete }: CaseFormProps) {
           processStage: "",
           nextActivity: "",
           subject: undefined,
-          assignedLawyerId: "", // Empty string means placeholder will show
+          assignedLawyerId: UNASSIGNED_LAWYER_VALUE, 
         },
   });
 
@@ -112,7 +114,7 @@ export function CaseForm({ initialData, onSave, onDelete }: CaseFormProps) {
         title: initialData ? "Caso Actualizado" : "Caso Creado",
         description: `El caso "${values.clientName}" ha sido ${initialData ? 'actualizado' : 'creado'} exitosamente.`,
       });
-      router.push("/dashboard");
+      router.push(initialData ? `/cases/${initialData.id}` : "/dashboard");
     } catch (error) {
       console.error("Error saving case:", error)
       toast({
@@ -294,8 +296,7 @@ export function CaseForm({ initialData, onSave, onDelete }: CaseFormProps) {
                     <FormLabel>Abogado Asignado</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
-                      value={field.value} // Use value here for controlled component
-                      defaultValue={field.value || ""} // defaultValue ensures something is set for react-hook-form
+                      value={field.value || UNASSIGNED_LAWYER_VALUE}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -303,7 +304,7 @@ export function CaseForm({ initialData, onSave, onDelete }: CaseFormProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value={UNASSIGNED_LAWYER_VALUE}>Sin asignar</SelectItem> {/* Changed value */}
+                        <SelectItem value={UNASSIGNED_LAWYER_VALUE}>Sin asignar</SelectItem>
                         {lawyers.map((lawyer) => (
                           <SelectItem key={lawyer.id} value={lawyer.id}>
                             {lawyer.name}
@@ -339,7 +340,9 @@ export function CaseForm({ initialData, onSave, onDelete }: CaseFormProps) {
                     <li key={reminder.id} className="flex justify-between items-center p-2 border rounded-md">
                       <div>
                         <p className="font-medium">{reminder.message}</p>
-                        <p className="text-sm text-muted-foreground">{new Date(reminder.date).toLocaleDateString()}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(parseISO(reminder.date), "Pp", { locale: es })}
+                        </p>
                       </div>
                       <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteReminder(reminder.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                     </li>
@@ -370,7 +373,7 @@ export function CaseForm({ initialData, onSave, onDelete }: CaseFormProps) {
                 <ul className="space-y-2">
                   {documentLinks.map(doc => (
                     <li key={doc.id} className="flex justify-between items-center p-2 border rounded-md">
-                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{doc.name}</a>
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">{doc.name}</a>
                       <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteDocumentLink(doc.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                     </li>
                   ))}
@@ -412,3 +415,4 @@ export function CaseForm({ initialData, onSave, onDelete }: CaseFormProps) {
     </Card>
   );
 }
+
