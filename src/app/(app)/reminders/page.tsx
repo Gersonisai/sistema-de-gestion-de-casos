@@ -1,33 +1,21 @@
 
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CalendarCheck, Loader2, AlertTriangle, ExternalLink, UserSquare } from "lucide-react";
+import { CalendarCheck, Loader2, AlertTriangle, ExternalLink, UserSquare, CalendarPlus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { mockCases, mockUsers } from "@/data/mockData";
-import type { Reminder, Case } from "@/lib/types"; // Removed User as it's implicitly handled by mockUsers
+import type { Reminder, Case } from "@/lib/types"; 
 import { format, parseISO, isToday, isFuture } from "date-fns";
 import { es } from "date-fns/locale/es";
-// Removed AI flow imports as simulation is being removed
-// import type { GeneratePushNotificationInput, GeneratePushNotificationOutput } from '@/ai/flows/generate-push-notification-flow';
-// import { generatePushNotification } from '@/ai/flows/generate-push-notification-flow';
-
-// Removed AlertDialog imports as simulation dialog is being removed
-// import {
-//   AlertDialog,
-//   AlertDialogAction,
-//   AlertDialogContent,
-//   AlertDialogDescription,
-//   AlertDialogHeader,
-//   AlertDialogTitle,
-//   AlertDialogCancel,
-// } from "@/components/ui/alert-dialog";
-// import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { GlobalReminderForm } from "@/components/reminders/GlobalReminderForm";
+import { useToast } from "@/hooks/use-toast";
 
 
 interface ExtendedReminder extends Reminder {
@@ -35,28 +23,21 @@ interface ExtendedReminder extends Reminder {
   caseClientName: string;
   caseNurej: string;
   assignedLawyerName?: string;
-  // alertType?: GeneratePushNotificationInput['alertType']; // Removed as simulation is removed
 }
 
 export default function RemindersPage() {
   const { currentUser, isAdmin, isLawyer, isLoading: authIsLoading } = useAuth();
   const [allUserReminders, setAllUserReminders] = useState<ExtendedReminder[]>([]);
   const [isLoadingReminders, setIsLoadingReminders] = useState(true);
-  // const { toast } = useToast(); // Removed as it was used for simulation errors
-
-  // Removed state variables related to notification simulation
-  // const [isGeneratingNotification, setIsGeneratingNotification] = useState(false);
-  // const [generatedNotificationContent, setGeneratedNotificationContent] = useState<GeneratePushNotificationOutput | null>(null);
-  // const [showNotificationDialog, setShowNotificationDialog] = useState(false);
-  // const [currentReminderForDialog, setCurrentReminderForDialog] = useState<ExtendedReminder | null>(null);
+  const [showAddReminderDialog, setShowAddReminderDialog] = useState(false);
+  const [selectableCases, setSelectableCases] = useState<Case[]>([]);
+  const { toast } = useToast();
 
 
-  useEffect(() => {
-    if (authIsLoading) {
-      return;
-    }
+  const fetchAndSetReminders = useCallback(() => {
     if (!currentUser) {
       setIsLoadingReminders(false);
+      setSelectableCases([]);
       return;
     }
 
@@ -64,12 +45,13 @@ export default function RemindersPage() {
 
     let relevantCases: Case[];
     if (isAdmin) {
-      relevantCases = mockCases;
+      relevantCases = [...mockCases]; // Use a copy for selectable cases
     } else if (isLawyer) {
       relevantCases = mockCases.filter(c => c.assignedLawyerId === currentUser.id);
     } else {
       relevantCases = [];
     }
+    setSelectableCases(relevantCases);
 
     const extractedReminders: ExtendedReminder[] = [];
     relevantCases.forEach(c => {
@@ -94,7 +76,43 @@ export default function RemindersPage() {
     
     setAllUserReminders(extractedReminders);
     setIsLoadingReminders(false);
-  }, [currentUser, isAdmin, isLawyer, authIsLoading]);
+  }, [currentUser, isAdmin, isLawyer]);
+
+  useEffect(() => {
+    if (!authIsLoading) {
+      fetchAndSetReminders();
+    }
+  }, [authIsLoading, fetchAndSetReminders]);
+
+
+  const handleSaveNewGlobalReminder = (
+    reminderData: Omit<Reminder, "id" | "createdBy">,
+    caseId: string
+  ) => {
+    if (!currentUser) return;
+
+    const targetCaseIndex = mockCases.findIndex(c => c.id === caseId);
+    if (targetCaseIndex === -1) {
+      toast({ variant: "destructive", title: "Error", description: "Caso no encontrado." });
+      return;
+    }
+
+    const newReminder: Reminder = {
+      ...reminderData,
+      id: `reminder-${Date.now()}`,
+      createdBy: currentUser.id,
+    };
+
+    // Update the mockCases data source directly
+    mockCases[targetCaseIndex].reminders.push(newReminder);
+    mockCases[targetCaseIndex].updatedAt = new Date().toISOString(); // Also update case's updatedAt
+
+    // Re-fetch and re-filter all reminders to update the view
+    fetchAndSetReminders(); 
+    
+    setShowAddReminderDialog(false); 
+  };
+
 
   const getReminderStatus = (dateString: string): { text: string; variant: "default" | "secondary" | "destructive" | "outline" } => {
     const date = parseISO(dateString);
@@ -112,9 +130,6 @@ export default function RemindersPage() {
                            .sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
   }, [allUserReminders]);
 
-  // Removed handleGenerateNotification function as simulation buttons are removed
-  // const handleGenerateNotification = async (reminder: ExtendedReminder, alertType: GeneratePushNotificationInput['alertType']) => { ... };
-
 
   if (authIsLoading || isLoadingReminders) {
     return (
@@ -126,7 +141,16 @@ export default function RemindersPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <PageHeader title="Mis Recordatorios" />
+      <PageHeader 
+        title="Mis Recordatorios"
+        actionButton={
+          (isAdmin || isLawyer) && ( // Only admins/lawyers can add reminders
+            <Button onClick={() => setShowAddReminderDialog(true)}>
+              <CalendarPlus className="mr-2 h-4 w-4" /> Añadir Nuevo Recordatorio
+            </Button>
+          )
+        }
+      />
       
       <section className="mb-8">
         <Card className="shadow-lg">
@@ -146,7 +170,6 @@ export default function RemindersPage() {
               <ul className="space-y-4">
                 {upcomingReminders.map(reminder => {
                   const status = getReminderStatus(reminder.date);
-                  // const isLoadingThisReminder = isGeneratingNotification && currentReminderForDialog?.id === reminder.id; // Removed
                   return (
                     <li key={reminder.id} className="p-4 border rounded-lg shadow-sm bg-card hover:shadow-md transition-shadow">
                       <div className="flex justify-between items-start mb-1">
@@ -168,7 +191,6 @@ export default function RemindersPage() {
                         )}
                       </div>
                       <div className="mt-3 flex flex-wrap justify-end items-center gap-2">
-                        {/* Simulation buttons removed */}
                         <Button variant="ghost" size="sm" asChild className="ml-auto md:ml-0">
                            <Link href={`/cases/${reminder.caseId}#reminders`}>
                              Ver Detalles del Caso <ExternalLink className="ml-2 h-3 w-3"/>
@@ -236,9 +258,27 @@ export default function RemindersPage() {
           </CardContent>
         </Card>
       </section>
-
-      {/* Notification simulation dialog removed */}
-      {/* {showNotificationDialog && generatedNotificationContent && currentReminderForDialog && ( ... )} */}
+      
+      <Dialog open={showAddReminderDialog} onOpenChange={setShowAddReminderDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Añadir Nuevo Recordatorio</DialogTitle>
+          </DialogHeader>
+          {selectableCases.length > 0 ? (
+            <GlobalReminderForm
+              cases={selectableCases}
+              onSave={handleSaveNewGlobalReminder}
+              onClose={() => setShowAddReminderDialog(false)}
+            />
+          ) : (
+            <div className="py-4 text-center text-muted-foreground">
+              <p>No hay casos disponibles para añadir recordatorios.</p>
+              {isLawyer && <p className="text-sm">Asegúrese de tener casos asignados.</p>}
+              {isAdmin && <p className="text-sm">Asegúrese de que existan casos en el sistema.</p>}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
