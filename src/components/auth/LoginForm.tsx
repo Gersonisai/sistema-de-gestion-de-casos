@@ -68,7 +68,7 @@ export function LoginForm() {
               alt="YASI K'ARI Logo" 
               width={48} 
               height={48}
-              data-ai-hint="layers icon" 
+              data-ai-hint="lady justice scales" 
             />
         </div>
         <CardTitle className="text-3xl font-bold text-center">YASI K'ARI</CardTitle>
