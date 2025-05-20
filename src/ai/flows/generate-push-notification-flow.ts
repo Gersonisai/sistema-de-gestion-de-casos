@@ -13,7 +13,7 @@ import {z} from 'genkit';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-export const GeneratePushNotificationInputSchema = z.object({
+const GeneratePushNotificationInputSchema = z.object({
   clientName: z.string().describe('The name of the client for the case.'),
   nurej: z.string().describe('The NUREJ identifier for the case.'),
   reminderMessage: z.string().describe('The content of the reminder message.'),
@@ -29,7 +29,7 @@ export const GeneratePushNotificationInputSchema = z.object({
 });
 export type GeneratePushNotificationInput = z.infer<typeof GeneratePushNotificationInputSchema>;
 
-export const GeneratePushNotificationOutputSchema = z.object({
+const GeneratePushNotificationOutputSchema = z.object({
   title: z.string().describe('The concise title for the push notification.'),
   body: z
     .string()
@@ -117,3 +117,4 @@ const generatePushNotificationFlow = ai.defineFlow(
     return output;
   }
 );
+
