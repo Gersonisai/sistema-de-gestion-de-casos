@@ -7,7 +7,7 @@ import type { CaseFormValues } from "@/components/cases/CaseForm";
 import { PageHeader } from "@/components/shared/PageHeader";
 import type { Case } from "@/lib/types";
 import { UserRole } from "@/lib/types";
-import { mockCases } from "@/data/mockData"; // To simulate fetching and updating
+import { mockCases, mockUsers } from "@/data/mockData"; // To simulate fetching and updating
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
