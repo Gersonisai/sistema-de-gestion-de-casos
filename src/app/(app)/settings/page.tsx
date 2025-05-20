@@ -10,7 +10,25 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Settings as SettingsIcon, Palette, Bell, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button"; // Import Button
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert components
+
+// Helper function to convert VAPID key
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -19,33 +37,46 @@ export default function SettingsPage() {
   const [notificationPermission, setNotificationPermission] = useState("default");
   const [isCheckingPermission, setIsCheckingPermission] = useState(true);
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [vapidKeyNotConfigured, setVapidKeyNotConfigured] = useState(false);
+
+  // Ensure VAPID key is correctly read, check if it's the placeholder
+  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'YOUR_VAPID_PUBLIC_KEY_PLACEHOLDER';
 
   useEffect(() => {
+    if (vapidPublicKey === 'YOUR_VAPID_PUBLIC_KEY_PLACEHOLDER') {
+      setVapidKeyNotConfigured(true);
+      console.warn("Clave VAPID pública no configurada. Las suscripciones Push podrían fallar o no funcionar correctamente en producción. Obtenga una de su proyecto de Firebase (Cloud Messaging) y configúrela como NEXT_PUBLIC_VAPID_PUBLIC_KEY en su entorno.");
+    } else {
+      setVapidKeyNotConfigured(false);
+    }
+
     if (typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator) {
       setNotificationPermission(Notification.permission);
       if (Notification.permission === "granted") {
-        // Verificar si ya existe una suscripción
         navigator.serviceWorker.ready.then(registration => {
           registration.pushManager.getSubscription().then(subscription => {
             if (subscription) {
               setNotificationsEnabled(true);
+              console.log('Suscripción Push existente encontrada:', JSON.stringify(subscription));
             } else {
               setNotificationsEnabled(false);
             }
             setIsCheckingPermission(false);
           });
+        }).catch(err => {
+            console.error("Error al verificar Service Worker o suscripción:", err);
+            setIsCheckingPermission(false);
         });
       } else {
         setNotificationsEnabled(false);
         setIsCheckingPermission(false);
       }
     } else {
-      // Notifications API no soportada
-      setNotificationPermission("denied"); // Tratar como denegado si no es soportado
+      setNotificationPermission("denied"); 
       setNotificationsEnabled(false);
       setIsCheckingPermission(false);
     }
-  }, []);
+  }, [vapidPublicKey]);
 
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
@@ -53,14 +84,18 @@ export default function SettingsPage() {
       title: "Preferencia Guardada",
       description: `Tema cambiado a: ${newTheme}. La aplicación del tema real requiere implementación adicional.`,
     });
-    // TODO: Implement theme changing logic (e.g., class on HTML, localStorage)
   };
 
   const subscribeToPushNotifications = async () => {
+    if (vapidKeyNotConfigured) {
+        toast({ variant: "destructive", title: "Configuración Requerida", description: "La clave VAPID pública no está configurada. No se puede suscribir a notificaciones." });
+        return null;
+    }
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       toast({ variant: "destructive", title: "Navegador no compatible", description: "Push Notifications no soportadas." });
       return null;
     }
+
     try {
       const registration = await navigator.serviceWorker.ready;
       let subscription = await registration.pushManager.getSubscription();
@@ -68,26 +103,25 @@ export default function SettingsPage() {
         console.log('Ya existe una suscripción Push:', subscription);
         return subscription;
       }
-
-      // TODO: Reemplaza 'YOUR_VAPID_PUBLIC_KEY' con tu clave pública VAPID real obtenida de Firebase u otro servicio.
-      // Esta clave es necesaria para que el servidor de push identifique tu aplicación.
-      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'YOUR_VAPID_PUBLIC_KEY_PLACEHOLDER';
-      if (vapidPublicKey === 'YOUR_VAPID_PUBLIC_KEY_PLACEHOLDER') {
-        console.warn("Clave VAPID pública no configurada. Las suscripciones Push podrían fallar o no funcionar correctamente en producción.");
-      }
-
+      
+      const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: vapidPublicKey,
+        applicationServerKey: applicationServerKey,
       });
+
       console.log('Suscripción Push exitosa:', subscription);
       console.log('Este es el objeto de suscripción que debes enviar a tu backend:', JSON.stringify(subscription));
       // TODO: Enviar la suscripción (subscription.toJSON()) a tu servidor backend para almacenarla.
-      // Ejemplo: await fetch('/api/subscribe-push', { method: 'POST', body: JSON.stringify(subscription), headers: {'Content-Type': 'application/json'} });
       return subscription;
     } catch (err) {
       console.error('Error al suscribir a Push Notifications:', err);
-      toast({ variant: "destructive", title: "Error de Suscripción", description: "No se pudo suscribir a notificaciones." });
+      // Check if the error is due to an invalid VAPID key format or other common issues
+      if (err instanceof DOMException && (err.name === 'InvalidStateError' || err.name === 'NotSupportedError' )) {
+         toast({ variant: "destructive", title: "Error de Suscripción", description: "No se pudo suscribir. Verifica la clave VAPID o la configuración del service worker." });
+      } else {
+        toast({ variant: "destructive", title: "Error de Suscripción", description: "No se pudo suscribir a notificaciones." });
+      }
       return null;
     }
   };
@@ -98,11 +132,14 @@ export default function SettingsPage() {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
       if (subscription) {
-        await subscription.unsubscribe();
-        console.log('Suscripción Push eliminada.');
-        // TODO: Notificar al backend para eliminar la suscripción de la base de datos.
-        // Ejemplo: await fetch('/api/unsubscribe-push', { method: 'POST', body: JSON.stringify({ endpoint: subscription.endpoint }), headers: {'Content-Type': 'application/json'} });
-        toast({ title: "Suscripción Cancelada", description: "Ya no recibirás notificaciones push." });
+        const unsubscribed = await subscription.unsubscribe();
+        if (unsubscribed) {
+            console.log('Suscripción Push eliminada.');
+            // TODO: Notificar al backend para eliminar la suscripción de la base de datos.
+            toast({ title: "Suscripción Cancelada", description: "Ya no recibirás notificaciones push." });
+        } else {
+            toast({ variant: "destructive", title: "Error", description: "No se pudo cancelar la suscripción a notificaciones." });
+        }
       }
     } catch (err) {
       console.error('Error al cancelar suscripción Push:', err);
@@ -120,7 +157,7 @@ export default function SettingsPage() {
           setNotificationsEnabled(true);
           toast({ title: "Notificaciones Habilitadas", description: "Ya estás suscrito para recibir notificaciones." });
         } else {
-          setNotificationsEnabled(false); // Falló la suscripción
+          setNotificationsEnabled(false); 
         }
       } else if (notificationPermission === 'default') {
         const permission = await Notification.requestPermission();
@@ -137,12 +174,11 @@ export default function SettingsPage() {
           setNotificationsEnabled(false);
           toast({ variant: "destructive", title: "Permiso Denegado", description: "No has concedido permiso para las notificaciones." });
         }
-      } else { // denied
+      } else { 
         setNotificationsEnabled(false);
         toast({ variant: "destructive", title: "Permiso Bloqueado", description: "Has bloqueado las notificaciones. Debes habilitarlas en la configuración de tu navegador." });
       }
     } else {
-      // Deshabilitar: cancelar suscripción
       await unsubscribeFromPushNotifications();
       setNotificationsEnabled(false);
     }
@@ -214,10 +250,20 @@ export default function SettingsPage() {
                 id="notifications-switch"
                 checked={notificationsEnabled}
                 onCheckedChange={handleNotificationsToggle}
-                disabled={notificationPermission === 'denied' || isCheckingPermission || isSubscribing}
+                disabled={notificationPermission === 'denied' || isCheckingPermission || isSubscribing || vapidKeyNotConfigured}
                 aria-label="Habilitar notificaciones push"
               />
             </div>
+            )}
+            {vapidKeyNotConfigured && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Configuración Requerida</AlertTitle>
+                  <AlertDescription>
+                    La clave VAPID pública no está configurada. Las notificaciones Push no pueden habilitarse.
+                    Por favor, obtenga una clave de su proyecto de Firebase (Cloud Messaging {'>'} Configuración Web {'>'} Par de claves) y configúrela como la variable de entorno `NEXT_PUBLIC_VAPID_PUBLIC_KEY`.
+                  </AlertDescription>
+                </Alert>
             )}
              {notificationPermission === 'denied' && (
               <div className="flex items-start p-3 rounded-md border border-yellow-500/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400">
