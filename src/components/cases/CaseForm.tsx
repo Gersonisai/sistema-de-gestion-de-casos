@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -35,6 +36,8 @@ import { ReminderForm } from "./ReminderForm";
 import { DocumentLinkForm } from "./DocumentLinkForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
+const UNASSIGNED_LAWYER_VALUE = "UNASSIGNED_LAWYER_VALUE_KEY";
+
 const caseFormSchema = z.object({
   nurej: z.string().min(1, "NUREJ es requerido."),
   clientName: z.string().min(1, "Nombre del cliente es requerido."),
@@ -44,14 +47,14 @@ const caseFormSchema = z.object({
   subject: z.enum(CASE_SUBJECTS_OPTIONS as [string, ...string[]], {
     errorMap: () => ({ message: "Materia es requerida." }),
   }),
-  assignedLawyerId: z.string().optional(),
+  assignedLawyerId: z.string().optional(), // Stays as string, can be UNASSIGNED_LAWYER_VALUE
 });
 
 export type CaseFormValues = z.infer<typeof caseFormSchema>;
 
 interface CaseFormProps {
   initialData?: Case;
-  onSave: (data: CaseFormValues, currentCase?: Case) => Promise<void>;
+  onSave: (data: CaseFormValues & { reminders: Case['reminders'], documentLinks: Case['documentLinks'], assignedLawyerId?: string }, currentCase?: Case) => Promise<void>;
   onDelete?: (caseId: string) => Promise<void>; // For edit mode
 }
 
@@ -62,7 +65,6 @@ export function CaseForm({ initialData, onSave, onDelete }: CaseFormProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   
-  // Local state for reminders and documents, to be managed within this form component
   const [reminders, setReminders] = useState<Case['reminders']>(initialData?.reminders || []);
   const [documentLinks, setDocumentLinks] = useState<Case['documentLinks']>(initialData?.documentLinks || []);
 
@@ -77,7 +79,7 @@ export function CaseForm({ initialData, onSave, onDelete }: CaseFormProps) {
           processStage: initialData.processStage,
           nextActivity: initialData.nextActivity,
           subject: initialData.subject,
-          assignedLawyerId: initialData.assignedLawyerId || "",
+          assignedLawyerId: initialData.assignedLawyerId || "", // Empty string means placeholder will show
         }
       : {
           nurej: "",
@@ -86,7 +88,7 @@ export function CaseForm({ initialData, onSave, onDelete }: CaseFormProps) {
           processStage: "",
           nextActivity: "",
           subject: undefined,
-          assignedLawyerId: "",
+          assignedLawyerId: "", // Empty string means placeholder will show
         },
   });
 
@@ -95,19 +97,24 @@ export function CaseForm({ initialData, onSave, onDelete }: CaseFormProps) {
   async function onSubmit(values: CaseFormValues) {
     setIsSaving(true);
     try {
-      // We pass the current reminders and documents along with the form values
+      const dataToSave = { ...values };
+      if (dataToSave.assignedLawyerId === UNASSIGNED_LAWYER_VALUE) {
+        dataToSave.assignedLawyerId = undefined;
+      }
+
       const fullCaseData = {
-        ...values,
+        ...dataToSave,
         reminders,
         documentLinks,
       };
-      await onSave(fullCaseData as any, initialData); // Cast to any for simplicity as onSave expects CaseFormValues
+      await onSave(fullCaseData as any, initialData);
       toast({
         title: initialData ? "Caso Actualizado" : "Caso Creado",
         description: `El caso "${values.clientName}" ha sido ${initialData ? 'actualizado' : 'creado'} exitosamente.`,
       });
       router.push("/dashboard");
     } catch (error) {
+      console.error("Error saving case:", error)
       toast({
         variant: "destructive",
         title: "Error",
@@ -139,7 +146,7 @@ export function CaseForm({ initialData, onSave, onDelete }: CaseFormProps) {
     }
   }
 
-  const handleAddReminder = (reminder: Case['reminders'][0]) => {
+  const handleAddReminder = (reminder: Omit<Case['reminders'][0], 'id' | 'createdBy'> ) => {
     setReminders(prev => [...prev, { ...reminder, id: `reminder-${Date.now()}`, createdBy: currentUser!.id }]);
   };
 
@@ -147,7 +154,7 @@ export function CaseForm({ initialData, onSave, onDelete }: CaseFormProps) {
     setReminders(prev => prev.filter(r => r.id !== reminderId));
   };
 
-  const handleAddDocumentLink = (docLink: Case['documentLinks'][0]) => {
+  const handleAddDocumentLink = (docLink: Omit<Case['documentLinks'][0], 'id'>) => {
     setDocumentLinks(prev => [...prev, { ...docLink, id: `doc-${Date.now()}` }]);
   };
 
@@ -285,14 +292,18 @@ export function CaseForm({ initialData, onSave, onDelete }: CaseFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Abogado Asignado</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value} // Use value here for controlled component
+                      defaultValue={field.value || ""} // defaultValue ensures something is set for react-hook-form
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccione un abogado" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Sin asignar</SelectItem>
+                        <SelectItem value={UNASSIGNED_LAWYER_VALUE}>Sin asignar</SelectItem> {/* Changed value */}
                         {lawyers.map((lawyer) => (
                           <SelectItem key={lawyer.id} value={lawyer.id}>
                             {lawyer.name}

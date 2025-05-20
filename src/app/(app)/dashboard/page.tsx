@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -25,7 +26,7 @@ export default function DashboardPage() {
   const { currentUser, isAdmin } = useAuth();
   const [cases, setCases] = useState<Case[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [subjectFilter, setSubjectFilter] = useState<string>("");
+  const [subjectFilter, setSubjectFilter] = useState<string>(""); // "" means placeholder is shown
 
   useEffect(() => {
     // Simulate fetching cases. In a real app, this would be an API call.
@@ -46,7 +47,7 @@ export default function DashboardPage() {
         (c.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
          c.nurej.toLowerCase().includes(searchTerm.toLowerCase()) ||
          c.cause.toLowerCase().includes(searchTerm.toLowerCase())) &&
-        (subjectFilter === "" || c.subject === subjectFilter)
+        (subjectFilter === "" || subjectFilter === "ALL" || c.subject === subjectFilter) // Updated logic
       )
       .sort((a, b) => new Date(b.lastActivityDate).getTime() - new Date(a.lastActivityDate).getTime());
   }, [cases, searchTerm, subjectFilter]);
@@ -85,7 +86,7 @@ export default function DashboardPage() {
                 <SelectValue placeholder="Filtrar por materia" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas las Materias</SelectItem>
+                <SelectItem value="ALL">Todas las Materias</SelectItem> {/* Changed value */}
                 {CASE_SUBJECTS_OPTIONS.map(subject => (
                   <SelectItem key={subject} value={subject}>{subject}</SelectItem>
                 ))}
