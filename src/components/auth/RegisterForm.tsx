@@ -15,14 +15,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/hooks/useAuth"; // Import useAuth
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
-import { mockUsers } from "@/data/mockData"; // Import mockUsers to add to it
-import { UserRole } from "@/lib/types"; // Import UserRole
-import type { User } from "@/lib/types";
+import { UserRole } from "@/lib/types";
 
 const formSchema = z.object({
   name: z.string().min(3, { message: "El nombre debe tener al menos 3 caracteres." }),
@@ -31,13 +30,15 @@ const formSchema = z.object({
   confirmPassword: z.string().min(6, { message: "Confirme su contraseña." }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Las contraseñas no coinciden.",
-  path: ["confirmPassword"], // Set error on confirmPassword field
+  path: ["confirmPassword"],
 });
 
 export function RegisterForm() {
+  const { register } = useAuth(); // Get register function from useAuth
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -51,44 +52,32 @@ export function RegisterForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
+    setErrorMessage(null);
+    // New users via public registration are LAWYERs by default
+    const result = await register(values.name, values.email, values.password, UserRole.LAWYER);
+    setIsLoading(false);
 
-    // Simulate backend registration delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Check if email already exists in mockUsers (simulating unique email check)
-    const emailExists = mockUsers.some(user => user.email === values.email);
-    if (emailExists) {
+    if (result.success) {
+      toast({
+        title: "Registro Exitoso",
+        description: "Su cuenta ha sido creada. Ahora puede iniciar sesión.",
+      });
+      router.push("/login");
+    } else {
+      let specificError = "Ocurrió un error durante el registro.";
+      if (result.error?.code === "auth/email-already-in-use") {
+        specificError = "Este correo electrónico ya está registrado.";
+        form.setError("email", { type: "manual", message: specificError });
+      } else if (result.error?.message) {
+        specificError = result.error.message;
+      }
+      setErrorMessage(specificError);
       toast({
         variant: "destructive",
         title: "Error de Registro",
-        description: "Este correo electrónico ya está registrado. Por favor, intente con otro.",
+        description: specificError,
       });
-      form.setError("email", { type: "manual", message: "Este correo electrónico ya está en uso." });
-      setIsLoading(false);
-      return;
     }
-    
-    // Simulate adding user to mock data (this is not persistent)
-    const newUser: User = {
-      id: `user-${Date.now()}`, // Simple unique ID generation for mock
-      name: values.name,
-      email: values.email,
-      // For this simulation, new users are registered as LAWYER.
-      // A real app might have role selection or default to a less privileged role.
-      role: UserRole.LAWYER, 
-      // Password is not stored in mockUsers, it's only checked by the mock login function
-    };
-    mockUsers.push(newUser);
-    console.log("Mock user added:", newUser);
-    console.log("Current mockUsers:", mockUsers);
-
-
-    setIsLoading(false);
-    toast({
-      title: "Registro Exitoso",
-      description: "Su cuenta ha sido creada. Ahora puede iniciar sesión.",
-    });
-    router.push("/login");
   }
 
   return (
@@ -154,6 +143,9 @@ export function RegisterForm() {
                 </FormItem>
               )}
             />
+            {errorMessage && (
+              <p className="text-sm font-medium text-destructive">{errorMessage}</p>
+            )}
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

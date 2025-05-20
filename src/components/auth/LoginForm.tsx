@@ -32,6 +32,7 @@ export function LoginForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -43,27 +44,30 @@ export function LoginForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
+    setErrorMessage(null);
     const success = await login(values.email, values.password);
     setIsLoading(false);
     if (success) {
       toast({ title: "Inicio de Sesión Exitoso", description: "Bienvenido a YASI K'ARI." });
       router.push("/dashboard");
     } else {
+      // Firebase errors are usually more specific, but for a general message:
+      const firebaseErrorMsg = "Email o contraseña incorrectos, o el usuario no existe. Verifique sus credenciales o regístrese.";
+      setErrorMessage(firebaseErrorMsg);
       toast({
         variant: "destructive",
         title: "Error de Inicio de Sesión",
-        description: "Email o contraseña incorrectos. Por favor intente de nuevo.",
+        description: firebaseErrorMsg,
       });
-      form.setError("email", { type: "manual", message: " "}); // Clearer visual for general error
-      form.setError("password", { type: "manual", message: "Email o contraseña incorrectos." });
+      form.setError("password", { type: "manual", message: " " }); // To show general error under password
     }
   }
 
   return (
     <Card className="w-full max-w-md shadow-xl">
-      <CardHeader>
-        <CardTitle className="text-3xl font-bold text-center mt-4">YASI K'ARI</CardTitle>
-        <CardDescription className="text-center">
+      <CardHeader className="text-center">
+        <CardTitle className="text-3xl font-bold text-primary mt-4">YASI K'ARI</CardTitle>
+        <CardDescription>
           Ingrese sus credenciales para acceder al sistema.
         </CardDescription>
       </CardHeader>
@@ -96,6 +100,9 @@ export function LoginForm() {
                 </FormItem>
               )}
             />
+            {errorMessage && (
+              <p className="text-sm font-medium text-destructive">{errorMessage}</p>
+            )}
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -6,20 +6,24 @@ import { useParams, useRouter } from "next/navigation";
 import { UserForm } from "@/components/users/UserForm";
 import type { EditUserFormValues } from "@/components/users/UserForm";
 import { PageHeader } from "@/components/shared/PageHeader";
-import type { User } from "@/lib/types";
-import { mockUsers } from "@/data/mockData"; 
+import type { User as AppUser } from "@/lib/types"; // App User type
+import { mockUsers } from "@/data/mockData"; // For fetching initial data and updating local mock list
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+
+// Firebase Admin SDK would be needed on a backend to truly edit Firebase Auth user properties like role (via custom claims) or name.
+// This frontend form will primarily update the local mockData for UI reflection.
+// Real user profile updates (name, role) should go to a Firestore database.
 
 function EditUserPageContent() {
   const routeParams = useParams();
   const router = useRouter();
   const { isAdmin, isLoading: authIsLoading } = useAuth();
   
-  const [currentUserData, setCurrentUserData] = useState<User | null | undefined>(undefined); // undefined for loading, null for not found
-  const [isClientLoading, setIsClientLoading] = useState(true); // Retained for clarity on initial data fetch simulation
+  const [currentUserData, setCurrentUserData] = useState<AppUser | null | undefined>(undefined);
+  const [isClientLoading, setIsClientLoading] = useState(true);
 
   const userId: string | null = useMemo(() => {
     return typeof routeParams?.id === 'string' ? routeParams.id : null;
@@ -32,14 +36,14 @@ function EditUserPageContent() {
         return;
       }
       if (!userId) {
-         // If params are available but no valid userId, set to null (not found)
-        if (routeParams && isClientLoading) { // Check isClientLoading to prevent setting to null if params just not ready
+        if (routeParams && isClientLoading) {
             setCurrentUserData(null);
         }
-        setIsClientLoading(false); // Done checking, even if no valid id
+        setIsClientLoading(false);
         return;
       }
       
+      // In a real app with Firebase, you'd fetch user profile from Firestore using userId (which is Firebase UID)
       const foundUser = mockUsers.find((u) => u.id === userId);
       setCurrentUserData(foundUser || null);
       setIsClientLoading(false);
@@ -48,23 +52,28 @@ function EditUserPageContent() {
 
 
   const handleSaveUser = async (data: EditUserFormValues, id?: string) => {
-    // In a real app, this would be an API call.
-    if (!id) return;
+    // This function is called by UserForm.
+    // In a real app, you'd update the user's profile in Firestore here.
+    // Firebase Auth user properties (like email, password) are typically changed via specific Firebase Auth SDK methods, not a general form.
+    // Roles would be updated in Firestore or via custom claims (backend).
+    if (!id) return { success: false, error: { message: "User ID is missing." } };
+    
+    console.log("Attempting to update user (mock):", id, data);
     const userIndex = mockUsers.findIndex(u => u.id === id);
     if (userIndex !== -1) {
         mockUsers[userIndex] = {
             ...mockUsers[userIndex],
             name: data.name,
             // Email is readonly and should not be changed here
-            role: data.role,
+            role: data.role, // Role update is simulated in mockUsers
         };
+        console.log("Updated mock user data:", mockUsers[userIndex]);
+        return { success: true };
     }
-    console.log("Updated user data:", data, "for user:", id);
-    // Navigation and toast are handled by UserForm
+    return { success: false, error: { message: "User not found in mock data for update." } };
   };
 
   if (authIsLoading || isClientLoading || (isAdmin && currentUserData === undefined && userId)) {
-    // Show loader if auth is loading, or if client is loading initial user data (and userId is present, meaning we expect data)
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-150px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -78,7 +87,7 @@ function EditUserPageContent() {
         <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
         <h2 className="text-2xl font-semibold">Usuario No Encontrado</h2>
         <p className="text-muted-foreground mt-2">
-          El usuario que está buscando no existe, no tiene un ID válido en la URL o ha sido eliminado.
+          El usuario que está buscando no existe o ha sido eliminado.
         </p>
         <Button asChild className="mt-6">
           <Link href="/users">Volver a Usuarios</Link>
@@ -87,7 +96,6 @@ function EditUserPageContent() {
     );
   }
   
-  // If still loading but it's not an admin or no userId was passed, it might be redirecting, don't render form
   if (!currentUserData && !isAdmin) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-150px)]">
@@ -95,7 +103,6 @@ function EditUserPageContent() {
       </div>
     );
   }
-
 
   return (
     <div className="container mx-auto py-8">
@@ -116,3 +123,4 @@ export default function EditUserPage() {
     </Suspense>
   );
 }
+

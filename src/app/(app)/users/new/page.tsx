@@ -2,17 +2,17 @@
 "use client";
 
 import { UserForm } from "@/components/users/UserForm";
-import type { CreateUserFormValues } from "@/components/users/UserForm";
+import type { CreateUserByAdminFormValues } from "@/components/users/UserForm";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { mockUsers } from "@/data/mockData";
 import { Loader2 } from "lucide-react";
-import type { User } from "@/lib/types";
+// import type { User } from "@/lib/types"; // App User type
+// import { mockUsers } from "@/data/mockData"; // mockUsers is updated within UserForm/AuthContext for now
 
 export default function NewUserPage() {
-  const { isAdmin, isLoading: authIsLoading } = useAuth();
+  const { isAdmin, isLoading: authIsLoading, register } = useAuth(); // Use register from AuthContext
   const router = useRouter();
   const [isClientLoading, setIsClientLoading] = useState(true);
 
@@ -26,19 +26,15 @@ export default function NewUserPage() {
     }
   }, [isAdmin, authIsLoading, router]);
 
-  const handleSaveUser = async (data: CreateUserFormValues) => {
-    // In a real app, this would be an API call.
-    // For this mock, we'll just log it and add to a local (non-persistent) list.
-    // Password is not stored in mockUser, just validated in form.
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      name: data.name,
-      email: data.email,
-      role: data.role,
-    };
-    mockUsers.push(newUser); 
-    console.log("New user data:", newUser);
-    // Navigation and toast are handled by UserForm
+  // Admin creating a new user
+  const handleSaveUser = async (data: CreateUserByAdminFormValues) => {
+    // The register function from AuthContext now handles Firebase user creation
+    // and the simulation of adding to mockUsers.
+    // The role is passed from the form.
+    const result = await register(data.name, data.email, data.password, data.role);
+    return { ...result, newUserId: result.error ? undefined : "simulated-new-id-from-firebase-auth" }; // UserForm expects newUserId on success
+    // In a real app with Firestore, the register function in AuthContext might return the actual new user ID from Firestore.
+    // For now, UserForm handles toast/redirect.
   };
   
   if (authIsLoading || isClientLoading) {
@@ -51,7 +47,7 @@ export default function NewUserPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <PageHeader title="Crear Nuevo Usuario" />
+      <PageHeader title="Crear Nuevo Usuario (Admin)" />
       <UserForm onSave={handleSaveUser as any} isEditMode={false} />
     </div>
   );
