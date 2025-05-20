@@ -1,30 +1,37 @@
 
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import {
-  LayoutDashboard,
-  Briefcase,
-  Users,
-  CalendarCheck,
-  FolderPlus,
-  Settings,
-} from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { ScrollArea } from "@/components/ui/scroll-area";
+// Este componente ya no es necesario si la navegación principal se mueve al Dashboard
+// y el menú de hamburguesa se elimina.
+// Se puede dejar vacío o eliminar del proyecto.
+// Por ahora, lo dejaré vacío para evitar errores de importación.
+
+// import Link from "next/link";
+// import { usePathname } from "next/navigation";
+// import { cn } from "@/lib/utils";
+// import { Button } from "@/components/ui/button";
+// import {
+//   LayoutDashboard,
+//   Briefcase,
+//   Users,
+//   CalendarCheck,
+//   FolderPlus,
+//   Settings,
+// } from "lucide-react";
+// import { useAuth } from "@/hooks/useAuth";
+// import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface SidebarNavProps {
   isMobile?: boolean;
   className?: string;
-  onLinkClick?: () => void; // New prop to handle link clicks
+  onLinkClick?: () => void; 
 }
 
 export function SidebarNav({ isMobile = false, className, onLinkClick }: SidebarNavProps) {
+  return null; // Opcionalmente, eliminar este archivo completamente si no hay otras referencias.
+  /*
   const pathname = usePathname();
-  const { isAdmin, currentUser } = useAuth(); 
+  const { isAdmin } = useAuth(); 
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -32,7 +39,7 @@ export function SidebarNav({ isMobile = false, className, onLinkClick }: Sidebar
     ...(isAdmin ? [{ href: "/cases/new", label: "Nuevo Caso", icon: FolderPlus, adminOnly: true }] : []),
     { href: "/reminders", label: "Recordatorios", icon: CalendarCheck },
     ...(isAdmin ? [{ href: "/users", label: "Usuarios", icon: Users, adminOnly: true }] : []),
-    ...(isAdmin ? [{ href: "/settings", label: "Configuración", icon: Settings }] : []), // Changed from currentUser.role === "admin"
+    ...(isAdmin ? [{ href: "/settings", label: "Configuración", icon: Settings }] : []),
   ];
 
   const handleItemClick = () => {
@@ -56,13 +63,17 @@ export function SidebarNav({ isMobile = false, className, onLinkClick }: Sidebar
               isActive 
                 ? "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent/90"
                 : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-              !isMobile && isActive && "bg-primary/10 text-primary hover:bg-primary/15", 
-              !isMobile && !isActive && "text-foreground hover:bg-accent hover:text-accent-foreground" 
+               // Ajuste para colores cuando el sidebar está en el layout principal (no móvil)
+               !isMobile && isActive && "bg-primary text-primary-foreground hover:bg-primary/90", // Color activo estándar para sidebar no móvil
+               !isMobile && !isActive && "text-foreground hover:bg-accent hover:text-accent-foreground" // Color inactivo estándar para sidebar no móvil
             )}
-            onClick={handleItemClick} // Call handleItemClick on button click
+            onClick={handleItemClick}
           >
             <Link href={item.href} className="flex items-center gap-3 rounded-lg px-3 py-2">
-              <item.icon className={cn("h-5 w-5", isActive ? "text-sidebar-accent-foreground" : "text-sidebar-foreground")} />
+              <item.icon className={cn("h-5 w-5", 
+                isMobile ? (isActive ? "text-sidebar-accent-foreground" : "text-sidebar-foreground")
+                         : (isActive ? "text-primary-foreground" : "text-foreground") // Iconos estándar para sidebar no móvil
+              )} />
               {item.label}
             </Link>
           </Button>
@@ -80,4 +91,5 @@ export function SidebarNav({ isMobile = false, className, onLinkClick }: Sidebar
       <NavContent />
     </ScrollArea>
   );
+  */
 }

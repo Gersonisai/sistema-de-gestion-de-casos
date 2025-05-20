@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Bell,
   LogOut,
-  Menu,
+  // Menu, // Menu ya no se usa para un sidebar fijo/sheet
   UserCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,22 +17,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+// Sheet y SidebarNav ya no se usan aquí si eliminamos el menú de hamburguesa
+// import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+// import { SidebarNav } from "./SidebarNav"; 
 import { useAuth } from "@/hooks/useAuth";
-import { SidebarNav } from "./SidebarNav"; 
-import { useState } from "react";
+// import { useState } from "react"; // useState para mobile menu ya no es necesario
 
 export function Header() {
   const { currentUser, logout } = useAuth();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Ya no es necesario
 
-  const handleMobileLinkClick = () => {
-    setIsMobileMenuOpen(false);
-  };
+  // const handleMobileLinkClick = () => { // Ya no es necesario
+  //   setIsMobileMenuOpen(false);
+  // };
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6 shadow-sm">
-      {/* Wrapper for SheetTrigger, always visible */}
+      {/* El botón de menú (SheetTrigger) se elimina */}
+      {/* 
       <div>
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
@@ -52,6 +54,7 @@ export function Header() {
           </SheetContent>
         </Sheet>
       </div>
+      */}
 
       <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
         <Link href="/dashboard" className="text-xl font-semibold hover:text-primary transition-colors">

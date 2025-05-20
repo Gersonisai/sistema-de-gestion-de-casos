@@ -1,18 +1,23 @@
 
 "use client";
 
-import Link from "next/link";
-// import Image from "next/image"; // Removed Image import
-import { SidebarNav } from "./SidebarNav";
-import { Separator } from "@/components/ui/separator";
+// Este componente ya no es necesario si la navegación principal se mueve al Dashboard.
+// Se puede dejar vacío o eliminar del proyecto.
+// Por ahora, lo dejaré vacío para evitar errores de importación si algún archivo aún lo referencia,
+// aunque el layout principal ya no lo usa.
+
+// import Link from "next/link";
+// import { SidebarNav } from "./SidebarNav";
+// import { Separator } from "@/components/ui/separator";
 
 export function Sidebar() {
+  return null; // Opcionalmente, eliminar este archivo completamente si no hay otras referencias.
+  /*
   return (
-    <aside className="hidden border-r bg-sidebar md:hidden text-sidebar-foreground shadow-lg">
+    <aside className="hidden border-r bg-sidebar md:block text-sidebar-foreground shadow-lg">
       <div className="flex h-full max-h-screen flex-col gap-2">
         <div className="flex h-16 items-center border-b px-6">
           <Link href="/dashboard" className="font-semibold text-sidebar-primary-foreground">
-             {/* Image component removed */}
             <span className="text-xl">YASI K'ARI</span>
           </Link>
         </div>
@@ -21,9 +26,9 @@ export function Sidebar() {
         </div>
         <Separator className="my-2 bg-sidebar-border" />
         <div className="p-4 mt-auto">
-            {/* Future elements like quick actions or profile summary can go here */}
         </div>
       </div>
     </aside>
   );
+  */
 }

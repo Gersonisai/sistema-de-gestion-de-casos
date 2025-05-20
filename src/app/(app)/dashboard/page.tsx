@@ -10,7 +10,7 @@ import type { Case, CaseSubject } from "@/lib/types";
 import { UserRole, CASE_SUBJECTS_OPTIONS } from "@/lib/types";
 import { mockCases as initialMockCases, mockUsers } from "@/data/mockData";
 import { useAuth } from "@/hooks/useAuth";
-import { PlusCircle, Search, Filter, Briefcase, BellRing, Users as UsersIcon, ArrowDownUp, ArrowUpDown } from "lucide-react";
+import { PlusCircle, Search, Filter, Briefcase, BellRing, Users as UsersIcon, ArrowDownUp, ArrowUpDown, Settings, FolderPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -53,7 +53,6 @@ export default function DashboardPage() {
     if (currentUser?.role === UserRole.LAWYER) {
       userCases = initialMockCases.filter(c => c.assignedLawyerId === currentUser.id);
     }
-    // Initial sort can be removed here, as it's handled by filteredCases
     setCases(userCases);
   }, [currentUser]);
 
@@ -66,10 +65,8 @@ export default function DashboardPage() {
         (subjectFilter === "ALL_SUBJECTS_FILTER_KEY" || c.subject === subjectFilter)
       );
 
-    // Sorting logic
     sortedCases.sort((a, b) => {
       let valA, valB;
-
       switch (sortField) {
         case "clientName":
         case "nurej":
@@ -81,16 +78,10 @@ export default function DashboardPage() {
           valA = new Date(a[sortField]).getTime();
           valB = new Date(b[sortField]).getTime();
           break;
-        default: // Should not happen
-          return 0;
+        default: return 0;
       }
-
-      if (valA < valB) {
-        return sortDirection === "asc" ? -1 : 1;
-      }
-      if (valA > valB) {
-        return sortDirection === "asc" ? 1 : -1;
-      }
+      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
       return 0;
     });
     
@@ -99,10 +90,8 @@ export default function DashboardPage() {
 
   const stats = useMemo(() => {
     const isUserAdmin = isAdmin;
-
     const primaryStatCount = isUserAdmin ? initialMockCases.length : cases.length;
     const primaryStatTitle = isUserAdmin ? "Total de Casos (Sistema)" : "Mis Casos Asignados";
-
     const relevantCasesForReminders = isUserAdmin ? initialMockCases : cases;
     const upcomingRemindersCount = relevantCasesForReminders.reduce((acc, currentCaseItem) => {
       const upcoming = currentCaseItem.reminders.filter(r => {
@@ -111,16 +100,13 @@ export default function DashboardPage() {
       }).length;
       return acc + upcoming;
     }, 0);
-
     const totalLawyersCount = isUserAdmin ? mockUsers.filter(u => u.role === UserRole.LAWYER).length : undefined;
-
     const relevantCasesForChart = isUserAdmin ? initialMockCases : cases;
     const casesBySubjectData = relevantCasesForChart.reduce((acc, currentCaseItem) => {
       const subject = currentCaseItem.subject;
       acc[subject] = (acc[subject] || 0) + 1;
       return acc;
     }, {} as Record<CaseSubject, number>);
-
     const chartData = CASE_SUBJECTS_OPTIONS.map(subject => ({
       name: subject,
       count: casesBySubjectData[subject] || 0,
@@ -133,77 +119,103 @@ export default function DashboardPage() {
       totalLawyersCount,
       chartData
     };
-  }, [cases, isAdmin, initialMockCases, mockUsers]);
+  }, [cases, isAdmin]);
 
   const chartConfig = {
-    count: {
-      label: "Casos",
-      color: "hsl(var(--primary))",
-    },
+    count: { label: "Casos", color: "hsl(var(--primary))" },
   } satisfies ChartConfig;
+
+  const NavCard = ({ href, icon: Icon, title, description, adminOnly = false }: { href: string, icon: React.ElementType, title: string, description: string, adminOnly?: boolean }) => {
+    if (adminOnly && !isAdmin) return null;
+    return (
+      <Link href={href} className="block hover:shadow-lg transition-shadow rounded-lg">
+        <Card className="shadow-md h-full cursor-pointer hover:border-primary">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base font-medium">{title}</CardTitle>
+            <Icon className="h-5 w-5 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">{description}</p>
+          </CardContent>
+        </Card>
+      </Link>
+    );
+  };
 
   return (
     <div className="container mx-auto py-2">
-      <PageHeader
-        title="Panel de Casos"
-        actionButton={
-          isAdmin ? (
-            <Button asChild className="shadow-md">
-              <Link href="/cases/new">
-                <PlusCircle className="mr-2 h-5 w-5" /> Crear Nuevo Caso
-              </Link>
-            </Button>
-          ) : null
-        }
-      />
+      <PageHeader title="Panel de Control YASI K'ARI" />
 
       {/* Stats Cards */}
+      <h2 className="text-xl font-semibold mb-3 text-foreground">Resumen General</h2>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
-        <Card className="shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{stats.primaryStatTitle}</CardTitle>
-            <Briefcase className="h-5 w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.primaryStatCount}</div>
-            <p className="text-xs text-muted-foreground">
-              {isAdmin ? "Total de casos registrados en el sistema" : "Casos actualmente bajo su responsabilidad"}
-            </p>
-          </CardContent>
-        </Card>
-        <Link href="/reminders" className="block hover:shadow-lg transition-shadow rounded-lg">
-          <Card className="shadow-md h-full cursor-pointer">
+        <Link href="/dashboard" className="block hover:shadow-lg transition-shadow rounded-lg">
+          <Card className="shadow-md h-full cursor-pointer hover:border-primary">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Recordatorios Próximos</CardTitle>
-              <BellRing className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">{stats.primaryStatTitle}</CardTitle>
+              <Briefcase className="h-5 w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.upcomingRemindersCount}</div>
+              <div className="text-2xl font-bold">{stats.primaryStatCount}</div>
               <p className="text-xs text-muted-foreground">
-                {isAdmin ? "Recordatorios próximos para todos los casos" : "Sus recordatorios para los próximos días"}
+                {isAdmin ? "Total de casos registrados en el sistema" : "Casos actualmente bajo su responsabilidad"}
               </p>
             </CardContent>
           </Card>
         </Link>
+        <NavCard
+          href="/reminders"
+          icon={BellRing}
+          title="Recordatorios Próximos"
+          description={isAdmin ? "Recordatorios próximos para todos los casos" + ` (${stats.upcomingRemindersCount})` : "Sus recordatorios para los próximos días" + ` (${stats.upcomingRemindersCount})`}
+        />
         {isAdmin && stats.totalLawyersCount !== undefined && (
-          <Card className="shadow-md">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Abogados</CardTitle>
-              <UsersIcon className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalLawyersCount}</div>
-              <p className="text-xs text-muted-foreground">
-                Abogados registrados en el sistema
-              </p>
-            </CardContent>
-          </Card>
+          <Link href="/users" className="block hover:shadow-lg transition-shadow rounded-lg">
+            <Card className="shadow-md h-full cursor-pointer hover:border-primary">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Abogados</CardTitle>
+                <UsersIcon className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalLawyersCount}</div>
+                <p className="text-xs text-muted-foreground">
+                  Abogados registrados en el sistema
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
         )}
+      </div>
+
+      {/* Navigation Cards */}
+      <h2 className="text-xl font-semibold mb-3 mt-8 text-foreground">Acciones y Navegación</h2>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+        <NavCard
+            href="/cases/new"
+            icon={FolderPlus}
+            title="Registrar Nuevo Caso"
+            description="Crear una nueva ficha de caso legal."
+            adminOnly={true}
+        />
+        <NavCard
+            href="/users"
+            icon={UsersIcon}
+            title="Gestionar Usuarios"
+            description="Administrar cuentas de abogados y administradores."
+            adminOnly={true}
+        />
+         <NavCard
+            href="/settings"
+            icon={Settings}
+            title="Configuración"
+            description="Personalizar preferencias de la aplicación."
+            adminOnly={true} 
+        />
       </div>
       
       {/* Chart for Cases by Subject */}
       {stats.chartData.length > 0 && (
-        <Card className="shadow-md mb-6">
+        <Card className="shadow-md mb-6 mt-8">
           <CardHeader>
             <CardTitle>Casos por Materia</CardTitle>
             <CardDescription>Distribución de los casos visibles según su materia.</CardDescription>
@@ -213,22 +225,9 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={stats.chartData} accessibilityLayer margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="name"
-                    tickLine={false}
-                    tickMargin={10}
-                    axisLine={false}
-                    interval={0}
-                    angle={stats.chartData.length > 5 ? -30 : 0}
-                    textAnchor={stats.chartData.length > 5 ? "end" : "middle"}
-                    height={stats.chartData.length > 5 ? 50 : 30}
-
-                  />
+                  <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} interval={0} angle={stats.chartData.length > 5 ? -30 : 0} textAnchor={stats.chartData.length > 5 ? "end" : "middle"} height={stats.chartData.length > 5 ? 50 : 30} />
                   <YAxis allowDecimals={false} />
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent indicator="dot" />}
-                  />
+                  <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
                   <Bar dataKey="count" fill="var(--color-count)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -238,7 +237,8 @@ export default function DashboardPage() {
       )}
 
       {/* Filters, Search, and Sort Section */}
-      <div className="mb-6 p-4 border rounded-lg bg-card shadow">
+      <div className="mb-6 p-4 border rounded-lg bg-card shadow mt-8">
+        <h3 className="text-lg font-semibold mb-4">Filtrar y Ordenar Casos</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -292,9 +292,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-
+      
+      <h2 className="text-xl font-semibold mb-4 mt-8 text-foreground">{isAdmin ? "Listado General de Casos" : "Mis Casos Asignados"}</h2>
       <CaseList cases={filteredCases} setCases={setCases} />
     </div>
   );
 }
-
