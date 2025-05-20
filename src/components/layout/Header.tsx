@@ -1,6 +1,8 @@
+
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import {
   Bell,
   LogOut,
@@ -19,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
-import { SidebarNav } from "./SidebarNav"; // Assuming SidebarNav contains navigation items
+import { SidebarNav } from "./SidebarNav"; 
 
 export function Header() {
   const { currentUser, logout, isAdmin } = useAuth();
@@ -42,11 +44,13 @@ export function Header() {
 
       <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
         <Link href="/dashboard" className="flex items-center gap-2 text-lg font-semibold md:text-base">
-             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary h-6 w-6">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            <Image 
+              src="https://placehold.co/24x24.png" 
+              alt="YASI K'ARI Logo" 
+              width={24} 
+              height={24} 
+              data-ai-hint="layers icon"
+            />
           <span className="sr-only">YASI K'ARI</span>
         </Link>
         <Link href="/dashboard" className="text-xl font-semibold ml-2 hover:text-primary transition-colors">
@@ -70,14 +74,7 @@ export function Header() {
                 <p className="text-xs text-muted-foreground font-normal">{currentUser?.email}</p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {isAdmin && (
-                <DropdownMenuItem asChild>
-                  <Link href="/settings">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Configuración
-                  </Link>
-                </DropdownMenuItem>
-              )}
+              {/* Removed settings link from user dropdown, keeping it in sidebar logic */}
               <DropdownMenuItem onClick={logout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Cerrar Sesión
