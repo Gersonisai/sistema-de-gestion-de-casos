@@ -27,6 +27,8 @@ import { isFuture, isToday, parseISO } from "date-fns";
 type SortField = "lastActivityDate" | "clientName" | "nurej" | "createdAt";
 type SortDirection = "asc" | "desc";
 
+const ALL_SUBJECTS_FILTER_KEY = "ALL_SUBJECTS_FILTER_KEY_VALUE"; // Ensure this is not an empty string
+
 const sortOptions: { value: SortField; label: string }[] = [
   { value: "lastActivityDate", label: "Fecha Última Actividad" },
   { value: "clientName", label: "Nombre Cliente" },
@@ -41,10 +43,10 @@ const sortDirectionOptions: { value: SortDirection; label: string }[] = [
 
 
 export default function DashboardPage() {
-  const { currentUser, isAdmin } = useAuth();
+  const { currentUser, isAdmin, isLawyer } = useAuth();
   const [cases, setCases] = useState<Case[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [subjectFilter, setSubjectFilter] = useState<string>("ALL_SUBJECTS_FILTER_KEY");
+  const [subjectFilter, setSubjectFilter] = useState<string>(ALL_SUBJECTS_FILTER_KEY);
   const [sortField, setSortField] = useState<SortField>("lastActivityDate");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
@@ -62,7 +64,7 @@ export default function DashboardPage() {
         (c.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
          c.nurej.toLowerCase().includes(searchTerm.toLowerCase()) ||
          c.cause.toLowerCase().includes(searchTerm.toLowerCase())) &&
-        (subjectFilter === "ALL_SUBJECTS_FILTER_KEY" || c.subject === subjectFilter)
+        (subjectFilter === ALL_SUBJECTS_FILTER_KEY || c.subject === subjectFilter)
       );
 
     sortedCases.sort((a, b) => {
@@ -101,16 +103,21 @@ export default function DashboardPage() {
       return acc + upcoming;
     }, 0);
     const totalLawyersCount = isUserAdmin ? mockUsers.filter(u => u.role === UserRole.LAWYER).length : undefined;
-    const relevantCasesForChart = isUserAdmin ? initialMockCases : cases;
-    const casesBySubjectData = relevantCasesForChart.reduce((acc, currentCaseItem) => {
-      const subject = currentCaseItem.subject;
-      acc[subject] = (acc[subject] || 0) + 1;
-      return acc;
-    }, {} as Record<CaseSubject, number>);
-    const chartData = CASE_SUBJECTS_OPTIONS.map(subject => ({
-      name: subject,
-      count: casesBySubjectData[subject] || 0,
-    })).filter(item => item.count > 0);
+    
+    let chartData: { name: string; count: number; }[] = [];
+    if (isUserAdmin) {
+      const relevantCasesForChart = initialMockCases; // Admins see all cases in chart
+      const casesBySubjectData = relevantCasesForChart.reduce((acc, currentCaseItem) => {
+        const subject = currentCaseItem.subject;
+        acc[subject] = (acc[subject] || 0) + 1;
+        return acc;
+      }, {} as Record<CaseSubject, number>);
+      chartData = CASE_SUBJECTS_OPTIONS.map(subject => ({
+        name: subject,
+        count: casesBySubjectData[subject] || 0,
+      })).filter(item => item.count > 0);
+    }
+
 
     return {
       primaryStatCount,
@@ -125,8 +132,10 @@ export default function DashboardPage() {
     count: { label: "Casos", color: "hsl(var(--primary))" },
   } satisfies ChartConfig;
 
-  const NavCard = ({ href, icon: Icon, title, description, adminOnly = false }: { href: string, icon: React.ElementType, title: string, description: string, adminOnly?: boolean }) => {
+  const NavCard = ({ href, icon: Icon, title, description, adminOnly = false, lawyerAndAdmin = false }: { href: string, icon: React.ElementType, title: string, description: string, adminOnly?: boolean, lawyerAndAdmin?: boolean }) => {
     if (adminOnly && !isAdmin) return null;
+    if (lawyerAndAdmin && !isAdmin && !isLawyer) return null; // Show if lawyer OR admin
+    
     return (
       <Link href={href} className="block hover:shadow-lg transition-shadow rounded-lg">
         <Card className="shadow-md h-full cursor-pointer hover:border-primary">
@@ -149,7 +158,7 @@ export default function DashboardPage() {
       {/* Stats Cards */}
       <h2 className="text-xl font-semibold mb-3 text-foreground">Resumen General</h2>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
-        <Link href="/dashboard" className="block hover:shadow-lg transition-shadow rounded-lg">
+        <Link href="/dashboard#case-list-section" className="block hover:shadow-lg transition-shadow rounded-lg">
           <Card className="shadow-md h-full cursor-pointer hover:border-primary">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{stats.primaryStatTitle}</CardTitle>
@@ -163,12 +172,20 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </Link>
-        <NavCard
-          href="/reminders"
-          icon={BellRing}
-          title="Recordatorios Próximos"
-          description={isAdmin ? "Recordatorios próximos para todos los casos" + ` (${stats.upcomingRemindersCount})` : "Sus recordatorios para los próximos días" + ` (${stats.upcomingRemindersCount})`}
-        />
+        <Link href="/reminders" className="block hover:shadow-lg transition-shadow rounded-lg">
+            <Card className="shadow-md h-full cursor-pointer hover:border-primary">
+                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Recordatorios Próximos</CardTitle>
+                    <BellRing className="h-5 w-5 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{stats.upcomingRemindersCount}</div>
+                    <p className="text-xs text-muted-foreground">
+                        {isAdmin ? "Recordatorios próximos para todos los casos" : "Sus recordatorios para los próximos días"}
+                    </p>
+                </CardContent>
+            </Card>
+        </Link>
         {isAdmin && stats.totalLawyersCount !== undefined && (
           <Link href="/users" className="block hover:shadow-lg transition-shadow rounded-lg">
             <Card className="shadow-md h-full cursor-pointer hover:border-primary">
@@ -187,34 +204,42 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Navigation Cards */}
-      <h2 className="text-xl font-semibold mb-3 mt-8 text-foreground">Acciones y Navegación</h2>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
-        <NavCard
-            href="/cases/new"
-            icon={FolderPlus}
-            title="Registrar Nuevo Caso"
-            description="Crear una nueva ficha de caso legal."
-            adminOnly={true}
-        />
-        <NavCard
-            href="/users"
-            icon={UsersIcon}
-            title="Gestionar Usuarios"
-            description="Administrar cuentas de abogados y administradores."
-            adminOnly={true}
-        />
-         <NavCard
-            href="/settings"
-            icon={Settings}
-            title="Configuración"
-            description="Personalizar preferencias de la aplicación."
-            adminOnly={true} 
-        />
-      </div>
+      {/* Navigation Cards - Conditional Rendering based on Role */}
+      {(isAdmin || isLawyer) && (
+        <>
+          <h2 className="text-xl font-semibold mb-3 mt-8 text-foreground">Acciones y Navegación</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+            <NavCard
+                href="/cases/new"
+                icon={FolderPlus}
+                title="Registrar Nuevo Caso"
+                description="Crear una nueva ficha de caso legal."
+                lawyerAndAdmin={true} // Visible for lawyers and admins
+            />
+            {isAdmin && ( // Only admins see these
+              <>
+                <NavCard
+                    href="/users"
+                    icon={UsersIcon}
+                    title="Gestionar Usuarios"
+                    description="Administrar cuentas de abogados y administradores."
+                    adminOnly={true}
+                />
+                 <NavCard
+                    href="/settings"
+                    icon={Settings}
+                    title="Configuración"
+                    description="Personalizar preferencias de la aplicación."
+                    adminOnly={true} 
+                />
+              </>
+            )}
+          </div>
+        </>
+      )}
       
-      {/* Chart for Cases by Subject */}
-      {stats.chartData.length > 0 && (
+      {/* Chart for Cases by Subject - Admin Only */}
+      {isAdmin && stats.chartData.length > 0 && (
         <Card className="shadow-md mb-6 mt-8">
           <CardHeader>
             <CardTitle>Casos por Materia</CardTitle>
@@ -237,7 +262,7 @@ export default function DashboardPage() {
       )}
 
       {/* Filters, Search, and Sort Section */}
-      <div className="mb-6 p-4 border rounded-lg bg-card shadow mt-8">
+      <div className="mb-6 p-4 border rounded-lg bg-card shadow mt-8" id="case-list-section">
         <h3 className="text-lg font-semibold mb-4">Filtrar y Ordenar Casos</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
           <div className="relative">
@@ -257,7 +282,7 @@ export default function DashboardPage() {
                 <SelectValue placeholder="Filtrar por materia" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL_SUBJECTS_FILTER_KEY">Todas las Materias</SelectItem>
+                <SelectItem value={ALL_SUBJECTS_FILTER_KEY}>Todas las Materias</SelectItem>
                 {CASE_SUBJECTS_OPTIONS.map(subject => (
                   <SelectItem key={subject} value={subject}>{subject}</SelectItem>
                 ))}
@@ -298,3 +323,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { CaseForm } from "@/components/cases/CaseForm";
@@ -11,19 +12,20 @@ import { UserRole } from "@/lib/types";
 import { Loader2 } from "lucide-react";
 
 export default function NewCasePage() {
-  const { isAdmin, isLoading: authIsLoading } = useAuth();
+  const { isAdmin, isLawyer, isLoading: authIsLoading } = useAuth();
   const router = useRouter();
   const [isClientLoading, setIsClientLoading] = useState(true);
 
   useEffect(() => {
     if (!authIsLoading) {
-      if (!isAdmin) {
-        router.replace("/dashboard"); // Redirect if not admin
+      // Allow if admin OR lawyer
+      if (!isAdmin && !isLawyer) {
+        router.replace("/dashboard"); // Redirect if not authorized
       } else {
         setIsClientLoading(false);
       }
     }
-  }, [isAdmin, authIsLoading, router]);
+  }, [isAdmin, isLawyer, authIsLoading, router]);
 
 
   const handleSaveCase = async (data: CaseFormValues & { reminders: any[], documentLinks: any[] }) => {
@@ -56,3 +58,4 @@ export default function NewCasePage() {
     </div>
   );
 }
+
