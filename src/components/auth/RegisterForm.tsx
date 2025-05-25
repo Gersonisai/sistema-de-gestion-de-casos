@@ -1,4 +1,9 @@
+// This component is no longer used as public registration is disabled.
+// Users are created by administrators via the /users/new page using UserForm.
+// You can delete this file.
+import type { UserRole } from "@/lib/types"; // Keep type import if any other file references it implicitly, otherwise safe to remove.
 
+/*
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -166,3 +171,5 @@ export function RegisterForm() {
     </Card>
   );
 }
+*/
+export {}; // Keep the file as a module

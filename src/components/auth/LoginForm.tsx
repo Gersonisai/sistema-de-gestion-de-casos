@@ -20,7 +20,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import Link from "next/link";
+// import Link from "next/link"; // No longer needed for public registration link
 
 const formSchema = z.object({
   email: z.string().email({ message: "Por favor ingrese un email válido." }),
@@ -51,15 +51,14 @@ export function LoginForm() {
       toast({ title: "Inicio de Sesión Exitoso", description: "Bienvenido a YASI K'ARI." });
       router.push("/dashboard");
     } else {
-      // Firebase errors are usually more specific, but for a general message:
-      const firebaseErrorMsg = "Email o contraseña incorrectos, o el usuario no existe. Verifique sus credenciales o regístrese.";
+      const firebaseErrorMsg = "Email o contraseña incorrectos, o el usuario no existe. Verifique sus credenciales.";
       setErrorMessage(firebaseErrorMsg);
       toast({
         variant: "destructive",
         title: "Error de Inicio de Sesión",
         description: firebaseErrorMsg,
       });
-      form.setError("password", { type: "manual", message: " " }); // To show general error under password
+      form.setError("password", { type: "manual", message: " " }); 
     }
   }
 
@@ -113,11 +112,16 @@ export function LoginForm() {
             </Button>
           </form>
         </Form>
+        {/* 
         <div className="mt-6 text-center text-sm">
           ¿No tiene una cuenta?{" "}
           <Link href="/register" className="underline text-primary hover:text-primary/80">
             Regístrese aquí
           </Link>
+        </div>
+        */}
+         <div className="mt-6 text-center text-xs text-muted-foreground">
+          El registro de nuevas cuentas es gestionado por los administradores del sistema.
         </div>
       </CardContent>
     </Card>
