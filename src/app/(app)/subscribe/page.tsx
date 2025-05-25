@@ -4,7 +4,7 @@
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Star, Building, HelpCircle } from "lucide-react";
+import { CheckCircle, Star, Building, HelpCircle, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -32,18 +32,19 @@ export default function SubscribePage() {
       description: "Procediendo al registro de su organización. La integración con pasarelas de pago es una funcionalidad futura.",
       duration: 5000,
     });
-    router.push("/register-organization?plan=" + planName.toLowerCase());
+    router.push("/register-organization?plan=" + planName.toLowerCase().replace(' ', '_'));
   };
 
   const handleStartFreeTrial = () => {
+    // Redirige a la página de verificación de identidad para la prueba gratuita
     router.push("/verify-identity");
   };
 
   const plans = [
     {
       name: "Básico",
-      price: "$19",
-      priceSuffix: "/mes",
+      price: "$19", // Placeholder
+      priceSuffix: "/mes por usuario",
       icon: <Star className="h-8 w-8 text-primary mb-4" />,
       features: [
         "1 Administrador",
@@ -58,8 +59,8 @@ export default function SubscribePage() {
     },
     {
       name: "Premium",
-      price: "$49",
-      priceSuffix: "/mes",
+      price: "$49", // Placeholder
+      priceSuffix: "/mes por usuario",
       icon: <Building className="h-8 w-8 text-primary mb-4" />,
       features: [
         "Hasta 3 Administradores",
@@ -70,7 +71,7 @@ export default function SubscribePage() {
         "Reportes avanzados",
         "Opción de personalización de marca (logo y colores)",
       ],
-      actionText: "Elegir Premium",
+      actionText: "Elegir Plan Premium",
       popular: true,
       ctaType: "paid",
     },
@@ -78,7 +79,7 @@ export default function SubscribePage() {
       name: "Empresarial",
       price: "Contáctanos",
       priceSuffix: "",
-      icon: <HelpCircle className="h-8 w-8 text-primary mb-4" />, // Replaced SVG with Lucide icon
+      icon: <HelpCircle className="h-8 w-8 text-primary mb-4" />,
       features: [
         "Usuarios y almacenamiento personalizados",
         "Integraciones a medida (Microsoft 365, Google Drive, Slack)",
@@ -93,18 +94,26 @@ export default function SubscribePage() {
 
   return (
     <div className="container mx-auto py-8">
-      <PageHeader title="Planes de Suscripción YASI K'ARI" />
+      <PageHeader title="Elija el Plan Perfecto para YASI K'ARI" />
       <div className="text-center mb-12">
-        <h2 className="text-3xl font-bold tracking-tight">Encuentre el plan perfecto para su consorcio legal</h2>
+        <h2 className="text-3xl font-bold tracking-tight text-foreground">Optimice la gestión de su consorcio legal</h2>
         <p className="mt-4 text-lg text-muted-foreground">
-          Elija un plan o comience con una prueba gratuita de 30 días del Plan Básico.
+          Comience con una prueba gratuita de 30 días del Plan Básico, o elija el plan que mejor se adapte a sus necesidades.
         </p>
+         <Button 
+            size="lg" 
+            className="mt-6 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md px-8 py-3 text-md"
+            onClick={handleStartFreeTrial}
+          >
+            <ShieldCheck className="mr-2 h-5 w-5" />
+            Iniciar Prueba Gratuita (30 Días Plan Básico)
+        </Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {plans.map((plan) => (
-          <Card key={plan.name} className={`flex flex-col shadow-xl ${plan.popular ? 'border-2 border-primary ring-2 ring-primary/50' : 'border'}`}>
+          <Card key={plan.name} className={`flex flex-col shadow-xl hover:shadow-2xl transition-shadow duration-300 ${plan.popular ? 'border-2 border-primary ring-2 ring-primary/50' : 'border'}`}>
             {plan.popular && (
-              <div className="px-3 py-1 bg-primary text-primary-foreground text-sm font-semibold text-center rounded-t-md -mb-px">
+              <div className="px-3 py-1 bg-primary text-primary-foreground text-sm font-semibold text-center rounded-t-lg -mb-px">
                 Más Popular
               </div>
             )}
@@ -123,30 +132,24 @@ export default function SubscribePage() {
                 ))}
               </ul>
             </CardContent>
-            <CardFooter className="flex-col items-stretch space-y-2">
+            <CardFooter className="flex-col items-stretch space-y-2 pt-6">
               {plan.ctaType === "paid" && (
                 <Button
                   className="w-full"
+                  size="lg"
                   variant={plan.popular ? "default" : "outline"}
                   onClick={() => handleChoosePaidPlan(plan.name)}
                 >
                   {plan.actionText}
                 </Button>
               )}
-              {plan.trialAvailable && (
-                 <Button
-                  className="w-full"
-                  variant="secondary"
-                  onClick={handleStartFreeTrial}
-                >
-                  Iniciar Prueba Gratuita (30 días)
-                </Button>
-              )}
+              {/* Botón de prueba gratuita específico para el plan básico ya está arriba */}
               {plan.ctaType === "contact" && (
                  <Button
                   className="w-full"
+                  size="lg"
                   variant="outline"
-                  onClick={() => router.push('mailto:ventas@yasikari.com')}
+                  onClick={() => router.push('mailto:ventas@yasikari.com?subject=Solicitud de Demo Plan Empresarial')}
                 >
                   {plan.actionText}
                 </Button>
@@ -156,8 +159,10 @@ export default function SubscribePage() {
         ))}
       </div>
       <div className="mt-12 text-center text-muted-foreground">
-        <p className="text-xs mt-2">*Todos los precios son ilustrativos y están sujetos a cambios.</p>
+        <p className="text-xs mt-2">*Todos los precios son ilustrativos y están sujetos a cambios. La funcionalidad de pago real no está implementada.</p>
+         <p className="text-xs mt-1">La prueba gratuita de 30 días requiere verificación de identidad.</p>
       </div>
     </div>
   );
 }
+

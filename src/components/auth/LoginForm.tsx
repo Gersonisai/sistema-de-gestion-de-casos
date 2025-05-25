@@ -51,20 +51,23 @@ export function LoginForm() {
       toast({ title: "Inicio de Sesión Exitoso", description: "Bienvenido a YASI K'ARI." });
       router.push("/dashboard");
     } else {
-      const firebaseErrorMsg = "Email o contraseña incorrectos, o el usuario no existe. Verifique sus credenciales o regístrese si es nuevo.";
+      // Firebase auth errors are often generic for security reasons (e.g. "auth/invalid-credential")
+      // So, we provide a user-friendly message.
+      const firebaseErrorMsg = "Email o contraseña incorrectos. Verifique sus credenciales. Las cuentas son creadas por un administrador de consorcio.";
       setErrorMessage(firebaseErrorMsg);
       toast({
         variant: "destructive",
         title: "Error de Inicio de Sesión",
         description: firebaseErrorMsg,
       });
-      form.setError("password", { type: "manual", message: " " }); 
+      form.setError("password", { type: "manual", message: " " }); // Clear previous specific message on password if any
     }
   }
 
   return (
     <Card className="w-full max-w-md shadow-xl">
       <CardHeader className="text-center">
+        {/* Logo eliminado según solicitud previa */}
         <CardTitle className="text-3xl font-bold text-primary mt-4">YASI K'ARI</CardTitle>
         <CardDescription>
           Ingrese sus credenciales para acceder al sistema.
@@ -113,10 +116,13 @@ export function LoginForm() {
           </form>
         </Form>
          <div className="mt-6 text-center text-sm">
-          ¿Nuevo en YASI K'ARI?{" "}
+          ¿Aún no tiene una organización en YASI K'ARI?{" "}
           <Link href="/subscribe" className="underline text-primary hover:text-primary/80">
             Vea nuestros planes o inicie una prueba gratuita.
           </Link>
+        </div>
+        <div className="mt-4 text-center text-xs text-muted-foreground">
+            Si pertenece a una organización existente, su administrador debe crear su cuenta.
         </div>
       </CardContent>
     </Card>
