@@ -1,5 +1,5 @@
 
-import type { User, Case, Reminder, DocumentLink, Organization } from "@/lib/types";
+import type { User, Case, Reminder, FileAttachment, Organization } from "@/lib/types";
 import { UserRole, CaseSubject, PROCESS_STAGES, THEME_PALETTES } from "@/lib/types";
 
 // Simulate a list of organizations/consorcios
@@ -9,7 +9,7 @@ export const mockOrganizations: Organization[] = [
     name: "Bufete Administrador Principal (Sistema)",
     ownerId: "Uh8GnPZnGkNVpEqXwsPJJtTc8R63", // Default Admin's UID
     plan: "system_admin",
-    themePalette: THEME_PALETTES[0].id, // Default theme
+    themePalette: THEME_PALETTES[0].id,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -29,9 +29,9 @@ export const mockUsers: User[] = [
   {
     id: "Uh8GnPZnGkNVpEqXwsPJJtTc8R63", // Admin UID from Firebase
     email: "admin@lexcase.com",
-    name: "Admin Global YASI",
+    name: "Admin YASI K'ARI", // Updated name
     role: UserRole.ADMIN,
-    organizationId: "org_default_admin", // Platform admin for the default "system" org
+    organizationId: "org_default_admin",
   },
   {
     id: "admin_test_org_1_uid",
@@ -72,16 +72,23 @@ const createReminders = (caseId: string, userId: string): Reminder[] => [
   },
 ];
 
-const createDocumentLinks = (caseId: string): DocumentLink[] => [
+// Updated to create FileAttachment instead of DocumentLink
+const createFileAttachments = (caseId: string, organizationId = "org_bufete_test_1"): FileAttachment[] => [
   {
     id: `${caseId}-doc1`,
-    name: "Demanda Inicial.pdf",
-    url: "https://onedrive.live.com/demanda_inicial_placeholder",
+    fileName: "Demanda_Inicial.pdf",
+    gcsPath: `tenants/${organizationId}/casos/${caseId}/documentos/Demanda_Inicial.pdf`,
+    contentType: "application/pdf",
+    size: 1024 * 200, // 200KB
+    uploadedAt: new Date().toISOString(),
   },
   {
     id: `${caseId}-doc2`,
-    name: "Pruebas Cliente.zip",
-    url: "https://onedrive.live.com/pruebas_cliente_placeholder",
+    fileName: "Pruebas_Cliente.zip",
+    gcsPath: `tenants/${organizationId}/casos/${caseId}/documentos/Pruebas_Cliente.zip`,
+    contentType: "application/zip",
+    size: 1024 * 1024 * 2, // 2MB
+    uploadedAt: new Date().toISOString(),
   },
 ];
 
@@ -97,7 +104,7 @@ export const mockCases: Case[] = [
     assignedLawyerId: "ExyIt8HKmsOoZhkjaIUdC8Rdm733", 
     lastActivityDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     reminders: createReminders("case001", "ExyIt8HKmsOoZhkjaIUdC8Rdm733"),
-    documentLinks: createDocumentLinks("case001"),
+    fileAttachments: createFileAttachments("case001", "org_bufete_test_1"), // Updated
     createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     organizationId: "org_bufete_test_1", 
@@ -113,7 +120,7 @@ export const mockCases: Case[] = [
     assignedLawyerId: "lawyer002_placeholder_uid",
     lastActivityDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     reminders: [],
-    documentLinks: createDocumentLinks("case002"),
+    fileAttachments: createFileAttachments("case002", "org_bufete_test_1"), // Updated
     createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     organizationId: "org_bufete_test_1",
@@ -129,7 +136,7 @@ export const mockCases: Case[] = [
     assignedLawyerId: "ExyIt8HKmsOoZhkjaIUdC8Rdm733", 
     lastActivityDate: new Date().toISOString(), 
     reminders: createReminders("case003", "ExyIt8HKmsOoZhkjaIUdC8Rdm733"),
-    documentLinks: [],
+    fileAttachments: [], // Updated
     createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date().toISOString(),
     organizationId: "org_bufete_test_1",
@@ -144,7 +151,7 @@ export const mockCases: Case[] = [
     subject: CaseSubject.CIVIL,
     lastActivityDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     reminders: [],
-    documentLinks: [],
+    fileAttachments: [], // Updated
     createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     organizationId: "org_bufete_test_1",
@@ -160,7 +167,7 @@ export const mockCases: Case[] = [
     assignedLawyerId: "lawyer002_placeholder_uid", 
     lastActivityDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     reminders: createReminders("case005", "lawyer002_placeholder_uid"),
-    documentLinks: createDocumentLinks("case005"),
+    fileAttachments: createFileAttachments("case005", "org_bufete_test_1"), // Updated
     createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     organizationId: "org_bufete_test_1", 

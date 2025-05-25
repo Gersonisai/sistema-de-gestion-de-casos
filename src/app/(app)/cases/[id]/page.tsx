@@ -6,23 +6,26 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { CaseForm } from "@/components/cases/CaseForm";
 import type { CaseFormValues } from "@/components/cases/CaseForm";
 import { PageHeader } from "@/components/shared/PageHeader";
-import type { Case, User } from "@/lib/types";
+import type { Case, User, FileAttachment } from "@/lib/types";
 import { UserRole } from "@/lib/types";
 import { mockCases, mockUsers } from "@/data/mockData"; 
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, Download, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+
 
 function CaseDetailPageContent() {
   const routeParams = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { currentUser, isAdmin, isLawyer, isSecretary, isLoading: authIsLoading } = useAuth();
+  const { toast } = useToast();
   
   const [currentCase, setCurrentCase] = useState<Case | null | undefined>(undefined);
   const [isEditing, setIsEditing] = useState(searchParams.get('edit') === 'true');
@@ -38,13 +41,9 @@ function CaseDetailPageContent() {
       }
       return;
     }
-    // Simulate fetching case data and filter by organization
     let foundCase = mockCases.find((c) => c.id === caseId);
     if (foundCase && currentUser?.organizationId && foundCase.organizationId !== currentUser.organizationId) {
-      // If case belongs to a different org, treat as not found for this user (unless system admin)
-      // This logic might need refinement for a true "system admin" who sees all orgs.
-      // For now, assume org admins/lawyers/secretaries only see their org's cases.
-      if (currentUser.role !== UserRole.ADMIN || currentUser.organizationId !== "org_default_admin" ) { // Example: system admin
+      if (currentUser.role !== UserRole.ADMIN || currentUser.organizationId !== "org_default_admin" ) {
         foundCase = undefined; 
       }
     }
@@ -55,7 +54,7 @@ function CaseDetailPageContent() {
     setIsEditing(searchParams.get('edit') === 'true');
   }, [searchParams]);
 
-  const handleSaveCase = async (data: CaseFormValues & { reminders: any[], documentLinks: any[], organizationId?: string }, caseToUpdate?: Case) => {
+  const handleSaveCase = async (data: CaseFormValues & { reminders: Case['reminders'], fileAttachments: FileAttachment[], organizationId?: string }, caseToUpdate?: Case) => {
     console.log("Updated case data:", data, "for case:", caseToUpdate?.id);
     if (caseToUpdate) {
         const caseIndex = mockCases.findIndex(c => c.id === caseToUpdate.id);
@@ -64,19 +63,35 @@ function CaseDetailPageContent() {
                 ...mockCases[caseIndex],
                 ...data,
                 updatedAt: new Date().toISOString(),
+                reminders: data.reminders || mockCases[caseIndex].reminders,
+                fileAttachments: data.fileAttachments || mockCases[caseIndex].fileAttachments,
             };
         }
     }
+    setCurrentCase(prev => prev ? {...prev, ...data} : null); // Update local state for immediate UI reflection
     setIsEditing(false);
+    router.replace(`/cases/${caseId}`, undefined); // Remove ?edit=true from URL
   };
 
   const handleDeleteCase = async (id: string) => {
-    if (!isAdmin) return; // Only admin can delete from here
+    if (!isAdmin) return;
     const caseIndex = mockCases.findIndex(c => c.id === id);
     if (caseIndex !== -1) {
         mockCases.splice(caseIndex, 1);
     }
     router.push('/dashboard');
+  };
+
+  const handleSimulatedDownload = (attachment: FileAttachment) => {
+    console.log(`[FRONTEND SIMULATION] Requesting download URL for: ${attachment.fileName} from path: ${attachment.gcsPath}`);
+    // In a real app: const { downloadUrl } = await fetch('/api/generate-download-url', { method: 'POST', body: JSON.stringify({ filePath: attachment.gcsPath }) }).then(res => res.json());
+    // window.open(downloadUrl, '_blank');
+    toast({
+      title: "Descarga Simulada",
+      description: `Se iniciaría la descarga de "${attachment.fileName}". (URL firmada no implementada en backend).`,
+    });
+     // Simulate opening a placeholder
+    window.open(`https://placehold.co/300x200.png?text=Simulated+Download+of+${attachment.fileName}`, "_blank");
   };
 
   const canEditThisCase = isAdmin || isSecretary || (isLawyer && currentCase?.assignedLawyerId === currentUser?.id);
@@ -167,17 +182,24 @@ function CaseDetailPageContent() {
             ) : <p className="text-muted-foreground">No hay recordatorios.</p>}
           </div>
 
-          <div className="pt-4 border-t" id="documents">
-            <h3 className="text-lg font-semibold mb-2">Documentos (Enlaces OneDrive)</h3>
-            {currentCase.documentLinks.length > 0 ? (
+          <div className="pt-4 border-t" id="documents"> {/* Updated section title */}
+            <h3 className="text-lg font-semibold mb-2">Archivos Adjuntos</h3>
+            {currentCase.fileAttachments.length > 0 ? (
               <ul className="space-y-2">
-                {currentCase.documentLinks.map(d => (
-                  <li key={d.id} className="p-3 border rounded-md bg-muted/50">
-                    <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">{d.name}</a>
+                {currentCase.fileAttachments.map(attachment => (
+                  <li key={attachment.id} className="p-3 border rounded-md bg-muted/50 flex justify-between items-center hover:bg-muted/70 transition-colors">
+                    <div className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <span className="font-medium">{attachment.fileName}</span>
+                        {attachment.size && <span className="text-xs text-muted-foreground">({(attachment.size / 1024).toFixed(1)} KB)</span>}
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => handleSimulatedDownload(attachment)} title="Descargar (Simulado)">
+                        <Download className="h-4 w-4" />
+                    </Button>
                   </li>
                 ))}
               </ul>
-            ) : <p className="text-muted-foreground">No hay documentos enlazados.</p>}
+            ) : <p className="text-muted-foreground">No hay archivos adjuntos.</p>}
           </div>
         </CardContent>
       </Card>

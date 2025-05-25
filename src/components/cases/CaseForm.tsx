@@ -24,16 +24,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import type { Case, User } from "@/lib/types";
+import type { Case, User, FileAttachment } from "@/lib/types";
 import { CASE_SUBJECTS_OPTIONS, PROCESS_STAGES, UserRole } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
-// import { mockUsers } from "@/data/mockData"; // Lawyers list passed as prop
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Loader2, Trash2, PlusCircle, CalendarPlus } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import { Save, Loader2, Trash2, PlusCircle, CalendarPlus, Download, FileText } from "lucide-react";
+import React, { useState } from "react";
 import { ReminderForm } from "./ReminderForm";
-import { DocumentLinkForm } from "./DocumentLinkForm";
+import { DocumentLinkForm } from "./DocumentLinkForm"; // Now FileUploadForm
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
@@ -56,9 +55,9 @@ export type CaseFormValues = z.infer<typeof caseFormSchema>;
 
 interface CaseFormProps {
   initialData?: Case;
-  onSave: (data: CaseFormValues & { reminders: Case['reminders'], documentLinks: Case['documentLinks'], assignedLawyerId?: string, organizationId?: string }, currentCase?: Case) => Promise<void>;
+  onSave: (data: CaseFormValues & { reminders: Case['reminders'], fileAttachments: Case['fileAttachments'], assignedLawyerId?: string, organizationId?: string }, currentCase?: Case) => Promise<void>;
   onDelete?: (caseId: string) => Promise<void>;
-  lawyersForAssignment?: User[]; // Pass list of lawyers for assignment dropdown
+  lawyersForAssignment?: User[];
 }
 
 export function CaseForm({ initialData, onSave, onDelete, lawyersForAssignment = [] }: CaseFormProps) {
@@ -69,7 +68,7 @@ export function CaseForm({ initialData, onSave, onDelete, lawyersForAssignment =
   const [isDeleting, setIsDeleting] = useState(false);
   
   const [reminders, setReminders] = useState<Case['reminders']>(initialData?.reminders || []);
-  const [documentLinks, setDocumentLinks] = useState<Case['documentLinks']>(initialData?.documentLinks || []);
+  const [fileAttachments, setFileAttachments] = useState<Case['fileAttachments']>(initialData?.fileAttachments || []);
 
   const form = useForm<CaseFormValues>({
     resolver: zodResolver(caseFormSchema),
@@ -115,7 +114,7 @@ export function CaseForm({ initialData, onSave, onDelete, lawyersForAssignment =
       const fullCaseData = {
         ...dataToSave,
         reminders,
-        documentLinks,
+        fileAttachments,
         organizationId: initialData?.organizationId || currentUser?.organizationId,
       };
       await onSave(fullCaseData as any, initialData);
@@ -137,7 +136,7 @@ export function CaseForm({ initialData, onSave, onDelete, lawyersForAssignment =
   }
 
   async function handleDelete() {
-    if (!initialData || !onDelete || !isAdmin) return; // Ensure only admin can delete
+    if (!initialData || !onDelete || !isAdmin) return;
     setIsDeleting(true);
     try {
       await onDelete(initialData.id);
@@ -166,12 +165,30 @@ export function CaseForm({ initialData, onSave, onDelete, lawyersForAssignment =
     setReminders(prev => prev.filter(r => r.id !== reminderId));
   };
 
-  const handleAddDocumentLink = (docLink: Omit<Case['documentLinks'][0], 'id'>) => {
-    setDocumentLinks(prev => [...prev, { ...docLink, id: `doc-${Date.now()}` }]);
+  const handleAddAttachments = (newAttachments: Omit<FileAttachment, "id" | "uploadedAt" | "gcsPath">[]) => {
+    const processedAttachments: FileAttachment[] = newAttachments.map(att => ({
+      ...att,
+      id: `file-${Date.now()}-${Math.random().toString(36).substring(2,7)}`, // Unique ID
+      gcsPath: `tenants/${currentUser?.organizationId || 'unknown_org'}/casos/${initialData?.id || 'new_case'}/${att.fileName}`, // Simulated GCS Path
+      uploadedAt: new Date().toISOString(),
+    }));
+    setFileAttachments(prev => [...prev, ...processedAttachments]);
   };
 
-  const handleDeleteDocumentLink = (docLinkId: string) => {
-    setDocumentLinks(prev => prev.filter(d => d.id !== docLinkId));
+  const handleDeleteAttachment = (attachmentId: string) => {
+    setFileAttachments(prev => prev.filter(d => d.id !== attachmentId));
+  };
+
+  const handleSimulatedDownload = (attachment: FileAttachment) => {
+    console.log(`[FRONTEND SIMULATION] Requesting download URL for: ${attachment.fileName} from path: ${attachment.gcsPath}`);
+    // In a real app: const { downloadUrl } = await fetch('/api/generate-download-url', { method: 'POST', body: JSON.stringify({ filePath: attachment.gcsPath }) }).then(res => res.json());
+    // window.open(downloadUrl, '_blank');
+    toast({
+      title: "Descarga Simulada",
+      description: `Se iniciaría la descarga de "${attachment.fileName}". (URL firmada no implementada en backend).`,
+    });
+     // Simulate opening a placeholder
+    window.open(`https://placehold.co/300x200.png?text=Simulated+Download+of+${attachment.fileName}`, "_blank");
   };
 
 
@@ -188,6 +205,7 @@ export function CaseForm({ initialData, onSave, onDelete, lawyersForAssignment =
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            {/* Case details fields (NUREJ, Client Name, Cause, etc.) remain the same */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
@@ -329,6 +347,7 @@ export function CaseForm({ initialData, onSave, onDelete, lawyersForAssignment =
               />
             )}
 
+            {/* Reminders Section - No change */}
             <div className="space-y-4 pt-6 border-t">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium">Recordatorios</h3>
@@ -363,32 +382,47 @@ export function CaseForm({ initialData, onSave, onDelete, lawyersForAssignment =
               )}
             </div>
 
+            {/* File Attachments Section - Updated */}
             <div className="space-y-4 pt-6 border-t">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium">Documentos (Enlaces OneDrive)</h3>
+                <h3 className="text-lg font-medium">Archivos Adjuntos</h3>
                  <Dialog>
                   <DialogTrigger asChild>
-                    <Button type="button" variant="outline" size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Añadir Documento</Button>
+                    <Button type="button" variant="outline" size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Adjuntar Archivos</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Nuevo Enlace de Documento</DialogTitle>
+                      <DialogTitle>Adjuntar Nuevos Archivos al Caso</DialogTitle>
                     </DialogHeader>
-                    <DocumentLinkForm onAddLink={handleAddDocumentLink} />
+                    <DocumentLinkForm 
+                        onAddAttachments={handleAddAttachments} 
+                        caseId={initialData?.id || "new-case-placeholder"} // Pass caseId for context
+                    />
                   </DialogContent>
                 </Dialog>
               </div>
-              {documentLinks.length > 0 ? (
+              {fileAttachments.length > 0 ? (
                 <ul className="space-y-2">
-                  {documentLinks.map(doc => (
-                    <li key={doc.id} className="flex justify-between items-center p-2 border rounded-md">
-                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">{doc.name}</a>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteDocumentLink(doc.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                  {fileAttachments.map(attachment => (
+                    <li key={attachment.id} className="flex justify-between items-center p-3 border rounded-md bg-muted/50 hover:bg-muted/70 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <span className="font-medium">{attachment.fileName}</span>
+                        {attachment.size && <span className="text-xs text-muted-foreground">({(attachment.size / 1024).toFixed(1)} KB)</span>}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => handleSimulatedDownload(attachment)} title="Descargar (Simulado)">
+                            <Download className="h-4 w-4"/>
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteAttachment(attachment.id)} title="Eliminar Archivo">
+                            <Trash2 className="h-4 w-4 text-destructive"/>
+                        </Button>
+                      </div>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-muted-foreground">No hay documentos enlazados a este caso.</p>
+                <p className="text-sm text-muted-foreground">No hay archivos adjuntos a este caso.</p>
               )}
             </div>
             

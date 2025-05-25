@@ -2,7 +2,7 @@
 export enum UserRole {
   ADMIN = "admin", // Admin of an organization/consorcio
   LAWYER = "lawyer",
-  SECRETARY = "secretary", // New role
+  SECRETARY = "secretary",
 }
 
 export const USER_ROLE_NAMES: Record<UserRole, string> = {
@@ -16,8 +16,8 @@ export interface Organization {
   id: string;
   name: string;
   ownerId: string; // User ID of the admin who owns/created this organization
-  plan: "trial_basic" | "basic" | "premium" | "enterprise" | "system_admin"; // e.g., "basic", "premium", "trial_basic"
-  themePalette?: string; // e.g., "default", "ocean", "forest"
+  plan: "trial_basic" | "basic" | "premium" | "enterprise" | "system_admin";
+  themePalette?: ThemePaletteId;
   createdAt: string; // ISO date string
   updatedAt: string; // ISO date string
 }
@@ -46,10 +46,15 @@ export interface Reminder {
   createdBy: string; // User ID
 }
 
-export interface DocumentLink {
+// Changed from DocumentLink to FileAttachment to reflect GCS integration
+export interface FileAttachment {
   id: string;
-  name: string;
-  url: string; // OneDrive URL
+  fileName: string; // Original name of the uploaded file
+  gcsPath: string; // Simulated GCS path, e.g., "tenants/orgId/casos/caseId/fileName.pdf"
+  contentType: string; // MIME type of the file
+  size?: number; // Size in bytes
+  uploadedAt: string; // ISO date string
+  // downloadUrl?: string; // This would be a temporary signed URL generated on demand
 }
 
 export interface Case {
@@ -63,7 +68,7 @@ export interface Case {
   assignedLawyerId?: string; // User ID of the lawyer
   lastActivityDate: string; // ISO date string
   reminders: Reminder[];
-  documentLinks: DocumentLink[];
+  fileAttachments: FileAttachment[]; // Changed from documentLinks
   createdAt: string; // ISO date string
   updatedAt: string; // ISO date string
   organizationId?: string; // ID of the organization this case belongs to
@@ -89,7 +94,7 @@ export const PLAN_LIMITS: Record<Organization['plan'], { maxLawyers: number }> =
 };
 
 export const THEME_PALETTES = [
-  { id: "default", name: "Predeterminada YASI K'ARI" },
+  { id: "default", name: "YASI K'ARI Corporativo" },
   { id: "ocean-blue", name: "Azul Océano Corporativo" },
   { id: "forest-green", name: "Verde Bosque Sereno" },
   { id: "crimson-red", name: "Rojo Carmesí Elegante" },

@@ -22,9 +22,8 @@ export function CaseListItem({ caseItem, onDelete }: CaseListItemProps) {
   const { isAdmin, isLawyer, isSecretary, currentUser } = useAuth();
   const assignedLawyer = mockUsers.find(u => u.id === caseItem.assignedLawyerId);
 
-  // Secretaries and Admins can edit any case in their org. Lawyers can only edit their assigned cases.
   const canEdit = isAdmin || isSecretary || (isLawyer && caseItem.assignedLawyerId === currentUser?.id);
-  const canDelete = isAdmin; // Only Admins can delete
+  const canDelete = isAdmin;
 
   const formattedLastActivityDate = caseItem.lastActivityDate 
     ? format(parseISO(caseItem.lastActivityDate), "PPP", { locale: es })
@@ -64,10 +63,10 @@ export function CaseListItem({ caseItem, onDelete }: CaseListItemProps) {
           <CalendarDays className="mr-2 h-4 w-4 text-accent" />
           <strong>Últ. Actividad:</strong> <span className="ml-1">{formattedLastActivityDate}</span>
         </div>
-        {caseItem.documentLinks.length > 0 && (
+        {caseItem.fileAttachments.length > 0 && ( // Updated from documentLinks
             <div className="flex items-center text-sm text-muted-foreground">
                 <FileText className="mr-2 h-4 w-4 text-accent" />
-                <strong>Documentos:</strong> <span className="ml-1">{caseItem.documentLinks.length}</span>
+                <strong>Archivos:</strong> <span className="ml-1">{caseItem.fileAttachments.length}</span>
             </div>
         )}
       </CardContent>

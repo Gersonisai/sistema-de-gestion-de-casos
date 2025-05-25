@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { mockCases, mockUsers } from "@/data/mockData"; 
+import type { Case, FileAttachment } from "@/lib/types"; // Added FileAttachment
 import { UserRole } from "@/lib/types";
 import { Loader2 } from "lucide-react";
 
@@ -28,20 +29,23 @@ export default function NewCasePage() {
   }, [isAdmin, isLawyer, isSecretary, authIsLoading, router]);
 
 
-  const handleSaveCase = async (data: CaseFormValues & { reminders: any[], documentLinks: any[] }) => {
+  const handleSaveCase = async (data: CaseFormValues & { reminders: Case['reminders'], fileAttachments: FileAttachment[] }) => {
     if (!currentUser?.organizationId) {
       console.error("No organization ID found for current user.");
       // Potentially show a toast message to the user
       return;
     }
     
-    const newCase = {
+    const newCase: Case = {
       id: `case-${Date.now()}`,
       ...data,
       organizationId: currentUser.organizationId, // Associate with current user's organization
       lastActivityDate: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      // Ensure reminders and fileAttachments are correctly passed
+      reminders: data.reminders || [],
+      fileAttachments: data.fileAttachments || [],
     };
     mockCases.push(newCase); 
     console.log("New case data:", newCase);
