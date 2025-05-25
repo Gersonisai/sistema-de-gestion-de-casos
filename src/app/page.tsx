@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from "react";
@@ -14,7 +15,8 @@ export default function HomePage() {
       if (isAuthenticated) {
         router.replace("/dashboard");
       } else {
-        router.replace("/login");
+        // Redirigir a la página de suscripciones para nuevos usuarios o no autenticados
+        router.replace("/subscribe");
       }
     }
   }, [isAuthenticated, isLoading, router]);

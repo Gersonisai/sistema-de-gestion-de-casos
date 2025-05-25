@@ -20,7 +20,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-// import Link from "next/link"; // No longer needed for public registration link
+import Link from "next/link";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Por favor ingrese un email válido." }),
@@ -51,7 +51,7 @@ export function LoginForm() {
       toast({ title: "Inicio de Sesión Exitoso", description: "Bienvenido a YASI K'ARI." });
       router.push("/dashboard");
     } else {
-      const firebaseErrorMsg = "Email o contraseña incorrectos, o el usuario no existe. Verifique sus credenciales.";
+      const firebaseErrorMsg = "Email o contraseña incorrectos, o el usuario no existe. Verifique sus credenciales o regístrese si es nuevo.";
       setErrorMessage(firebaseErrorMsg);
       toast({
         variant: "destructive",
@@ -112,16 +112,11 @@ export function LoginForm() {
             </Button>
           </form>
         </Form>
-        {/* 
-        <div className="mt-6 text-center text-sm">
-          ¿No tiene una cuenta?{" "}
-          <Link href="/register" className="underline text-primary hover:text-primary/80">
-            Regístrese aquí
+         <div className="mt-6 text-center text-sm">
+          ¿Nuevo en YASI K'ARI?{" "}
+          <Link href="/subscribe" className="underline text-primary hover:text-primary/80">
+            Vea nuestros planes o inicie una prueba gratuita.
           </Link>
-        </div>
-        */}
-         <div className="mt-6 text-center text-xs text-muted-foreground">
-          El registro de nuevas cuentas es gestionado por los administradores del sistema.
         </div>
       </CardContent>
     </Card>

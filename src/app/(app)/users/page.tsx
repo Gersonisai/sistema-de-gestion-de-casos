@@ -3,7 +3,7 @@
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users as UsersIcon, PlusCircle, Edit, Trash2, MoreVertical } from "lucide-react"; // Added MoreVertical
+import { Users as UsersIcon, PlusCircle, Edit, Trash2, MoreVertical, KeySquare } from "lucide-react"; 
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -37,6 +37,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 
@@ -46,7 +47,7 @@ export default function UsersPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isClientLoading, setIsClientLoading] = useState(true);
-  const [users, setUsers] = useState<User[]>([]);
+  const [usersToList, setUsersToList] = useState<User[]>([]);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   useEffect(() => {
@@ -54,9 +55,19 @@ export default function UsersPage() {
       if (!isAdmin) {
         router.replace("/dashboard"); 
       } else {
-        // Filter out the current admin user from the list if they are an admin,
-        // Admins shouldn't typically delete or demote themselves via the main user list.
-        setUsers(mockUsers.filter(u => u.id !== currentUser?.id || u.role !== UserRole.ADMIN));
+        // In a multi-tenant app, an admin would only see users from their organization.
+        // For this simulation, the `currentUser` (admin) sees other users within their `organizationId`.
+        // The current `admin@lexcase.com` is a sort of "super admin" for now.
+        // If we want strict organization scoping, this filter needs to be more robust.
+        const orgId = currentUser?.organizationId;
+        if (orgId) {
+            setUsersToList(mockUsers.filter(u => u.organizationId === orgId && u.id !== currentUser?.id));
+        } else {
+            // Fallback for admin not associated with an org (should not happen with new flow)
+            // or for a "super admin" view if we decide to implement that concept.
+            // For now, if admin has no orgId, show all users except self.
+            setUsersToList(mockUsers.filter(u => u.id !== currentUser?.id));
+        }
         setIsClientLoading(false);
       }
     }
@@ -76,12 +87,14 @@ export default function UsersPage() {
 
   const handleDeleteConfirm = () => {
     if (userToDelete) {
+      // TODO: In a real app, call Firebase Admin SDK to delete user from Firebase Auth.
+      // For now, just remove from mockUsers.
       const userIndex = mockUsers.findIndex(u => u.id === userToDelete.id);
       if (userIndex > -1) {
-        mockUsers.splice(userIndex, 1); // Remove from mock data source
+        mockUsers.splice(userIndex, 1); 
       }
-      setUsers(prevUsers => prevUsers.filter(u => u.id !== userToDelete.id)); // Update local state
-      toast({ title: "Usuario Eliminado", description: `El usuario ${userToDelete.name} ha sido eliminado.` });
+      setUsersToList(prevUsers => prevUsers.filter(u => u.id !== userToDelete.id)); 
+      toast({ title: "Usuario Eliminado (Simulación)", description: `El usuario ${userToDelete.name} ha sido eliminado de la lista local.` });
       setUserToDelete(null);
     }
   };
@@ -109,12 +122,12 @@ export default function UsersPage() {
         actionButton={
           <Button asChild>
             <Link href="/users/new">
-              <PlusCircle className="mr-2 h-5 w-5" /> Crear Nuevo Usuario
+              <PlusCircle className="mr-2 h-5 w-5" /> Crear Nuevo Usuario (Abogado)
             </Link>
           </Button>
         }
       />
-      <Card className="shadow-lg">
+      <Card className="shadow-lg mb-6">
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle className="flex items-center">
@@ -122,14 +135,15 @@ export default function UsersPage() {
               Lista de Usuarios
             </CardTitle>
             <CardDescription>
-              Total de usuarios: {users.length}
+              Total de usuarios en su organización: {usersToList.length}
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
-          {users.length === 0 ? (
+          {usersToList.length === 0 ? (
              <div className="text-center py-10 text-muted-foreground">
-                <p className="text-lg">No hay otros usuarios para mostrar.</p>
+                <p className="text-lg">No hay otros usuarios en su organización para mostrar.</p>
+                <p className="text-sm">Puede crear nuevos usuarios (abogados) usando el botón de arriba.</p>
              </div>
           ) : (
             <div className="overflow-x-auto">
@@ -143,7 +157,7 @@ export default function UsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => (
+                  {usersToList.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
@@ -163,15 +177,15 @@ export default function UsersPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem asChild>
                               <Link href={`/users/${user.id}/edit`} className="flex items-center cursor-pointer">
-                                <Edit className="mr-2 h-4 w-4" /> Editar
+                                <Edit className="mr-2 h-4 w-4" /> Editar Rol/Nombre
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => handleDeleteRequest(user)} 
                               className="flex items-center text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
-                              disabled={user.id === currentUser?.id && user.role === UserRole.ADMIN} // Prevent self-delete for admin
+                              disabled={user.id === currentUser?.id && user.role === UserRole.ADMIN}
                             >
-                              <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                              <Trash2 className="mr-2 h-4 w-4" /> Eliminar Usuario
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -185,13 +199,35 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
+      {/* Placeholder for Invitation Code Management */}
+      <Card className="shadow-lg">
+        <CardHeader>
+            <CardTitle className="flex items-center">
+                <KeySquare className="mr-2 h-6 w-6 text-primary" />
+                Gestión de Invitaciones (Próximamente)
+            </CardTitle>
+             <CardDescription>
+              Genere y gestione códigos de invitación para que los abogados se unan a su organización.
+            </CardDescription>
+        </CardHeader>
+        <CardContent>
+            <p className="text-muted-foreground">
+                Esta funcionalidad permitirá generar códigos únicos que los abogados podrán usar para registrarse y
+                unirse automáticamente a su consorcio, dentro de los límites de su plan de suscripción.
+            </p>
+            <Button disabled className="mt-4">Generar Código de Invitación (Simulación)</Button>
+        </CardContent>
+      </Card>
+
+
       {userToDelete && (
         <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>¿Está seguro de eliminar a {userToDelete.name}?</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta acción no se puede deshacer. El usuario será eliminado permanentemente.
+                Esta acción no se puede deshacer (simulación). El usuario será eliminado de la lista local.
+                En una aplicación real, esto también eliminaría al usuario de Firebase Authentication.
                 Los casos asignados a este usuario (si es abogado) deberán ser reasignados manualmente.
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -207,4 +243,3 @@ export default function UsersPage() {
     </div>
   );
 }
-

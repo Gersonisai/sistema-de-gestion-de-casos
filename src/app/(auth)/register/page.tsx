@@ -1,28 +1,28 @@
-// This page is no longer used as public registration is disabled.
-// Users are created by administrators via the /users/new page.
-// You can delete this file.
 
-/*
-import { RegisterForm } from "@/components/auth/RegisterForm";
+"use client"; // Added this directive
 
-export default function RegisterPage() {
-  return (
-    <main className="flex items-center justify-center min-h-screen bg-gradient-to-br from-background to-secondary p-4">
-      <RegisterForm />
-    </main>
-  );
-}
-*/
+// This page is being deprecated in favor of register-organization.
+// Users (consorcio admins) will register through the /register-organization flow.
+// Lawyers will be added by admins or via invitation codes (future).
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
 export default function RegisterPageDisabled() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Redirect to the new subscription flow
+    router.replace('/subscribe');
+  }, [router]);
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
-      <h1 className="text-2xl font-semibold mb-4">Registro Deshabilitado</h1>
+      <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+      <h1 className="text-2xl font-semibold mb-4">Redirigiendo...</h1>
       <p className="text-muted-foreground">
-        El registro público de usuarios ha sido deshabilitado.
-      </p>
-      <p className="text-muted-foreground mt-2">
-        Las cuentas de usuario son creadas por los administradores del sistema.
+        El registro de usuarios se realiza a través de la selección de un plan de suscripción.
       </p>
     </div>
   );
