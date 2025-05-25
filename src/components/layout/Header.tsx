@@ -6,8 +6,9 @@ import {
   Bell,
   LogOut,
   UserCircle,
-  Menu, // Re-añadido para el menú móvil
-  Landmark, // Icono para Suscripciones/Planes
+  Menu, 
+  Landmark, 
+  Settings as SettingsIcon, // Import Settings icon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +25,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
 
 export function Header() {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, isAdmin } = useAuth(); // Added isAdmin
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleMobileLinkClick = () => {
@@ -34,7 +35,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6 shadow-sm">
       
-      <div className="md:hidden"> {/* Menú de hamburguesa solo en móvil */}
+      <div className="md:hidden"> 
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
             <Button variant="outline" size="icon">
@@ -44,7 +45,7 @@ export function Header() {
           </SheetTrigger>
           <SheetContent 
             side="left" 
-            className="flex flex-col p-0 bg-sidebar text-sidebar-foreground w-[280px] sm:w-[320px]" // Ajustar ancho si es necesario
+            className="flex flex-col p-0 bg-sidebar text-sidebar-foreground w-[280px] sm:w-[320px]"
           >
             <SheetHeader className="p-4 border-b border-sidebar-border">
               <SheetTitle className="text-sidebar-foreground">Menú Principal</SheetTitle>
@@ -55,7 +56,7 @@ export function Header() {
       </div>
       
 
-      <div className="flex w-full items-center gap-4 md:ml-0"> {/* md:ml-0 para que no haya tanto margen */}
+      <div className="flex w-full items-center gap-4 md:ml-0"> 
         <Link href="/dashboard" className="text-xl font-semibold hover:text-primary transition-colors">
           YASI K'ARI
         </Link>
@@ -77,6 +78,14 @@ export function Header() {
                 <p className="text-xs text-muted-foreground font-normal">{currentUser?.email}</p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {isAdmin && ( // Conditionally render Settings link for admins
+                <DropdownMenuItem asChild>
+                  <Link href="/settings">
+                    <SettingsIcon className="mr-2 h-4 w-4" />
+                    Configuración
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem asChild>
                 <Link href="/subscribe">
                   <Landmark className="mr-2 h-4 w-4" />
