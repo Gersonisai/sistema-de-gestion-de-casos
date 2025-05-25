@@ -24,6 +24,6 @@ if (!getApps().length) {
 }
 
 const auth = getAuth(app);
-// const analytics = getAnalytics(app); // You can uncomment this if you plan to use Firebase Analytics
+// const analytics = getAnalytics(app); // You can uncomment this if you plan to use Firebase Analytics and have configured it.
 
 export { app, auth };
