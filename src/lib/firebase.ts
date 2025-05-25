@@ -3,18 +3,18 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 // import { getFirestore } from "firebase/firestore"; // Uncomment if you use Firestore
+// import { getAnalytics } from "firebase/analytics"; // Uncomment if you use Analytics
 
 // Your web app's Firebase configuration
-// IMPORTANT: Replace these with your actual Firebase project configuration
-// It's highly recommended to use environment variables for this
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "YOUR_API_KEY",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "YOUR_AUTH_DOMAIN",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "YOUR_PROJECT_ID",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "YOUR_STORAGE_BUCKET",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "YOUR_MESSAGING_SENDER_ID",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "YOUR_APP_ID",
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "YOUR_MEASUREMENT_ID" // Optional
+  apiKey: "AIzaSyBYHFVE8ct-qBnuBOWt250AP1pjTTqzMM4",
+  authDomain: "apps-d34b2.firebaseapp.com",
+  projectId: "apps-d34b2",
+  storageBucket: "apps-d34b2.firebasestorage.app",
+  messagingSenderId: "710137090898",
+  appId: "1:710137090898:web:79ab38775b991db65fe08b",
+  measurementId: "G-RFPL8PW0L1"
 };
 
 // Initialize Firebase
@@ -26,6 +26,7 @@ if (!getApps().length) {
 }
 
 const auth = getAuth(app);
-// const db = getFirestore(app); // Uncomment if you use Firestore
+// const firestore = getFirestore(app); // Example if using Firestore
+// const analytics = getAnalytics(app); // Example if using Analytics
 
-export { app, auth /*, db */ }; // Export db if you use Firestore
+export { app, auth };
