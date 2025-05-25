@@ -4,13 +4,13 @@ import { UserRole, CaseSubject, PROCESS_STAGES } from "@/lib/types";
 
 export const mockUsers: User[] = [
   {
-    id: "admin001",
+    id: "Uh8GnPZnGkNVpEqXwsPJJtTc8R63", // Updated Admin UID
     email: "admin@lexcase.com",
     name: "Admin LexCase",
     role: UserRole.ADMIN,
   },
   {
-    id: "ExyIt8HKmsOoZhkjaIUdC8Rdm733", // Actualizado para "usuario uno"
+    id: "ExyIt8HKmsOoZhkjaIUdC8Rdm733", 
     email: "abogado1@lexcase.com",
     name: "Lic. Ana Pérez",
     role: UserRole.LAWYER,
@@ -54,7 +54,7 @@ export const mockCases: Case[] = [
     processStage: PROCESS_STAGES[1],
     nextActivity: "Audiencia de conciliación",
     subject: CaseSubject.CIVIL,
-    assignedLawyerId: "ExyIt8HKmsOoZhkjaIUdC8Rdm733", // Asegurarse que los casos asignados usen el nuevo ID si corresponde
+    assignedLawyerId: "ExyIt8HKmsOoZhkjaIUdC8Rdm733", 
     lastActivityDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
     reminders: createReminders("case001", "ExyIt8HKmsOoZhkjaIUdC8Rdm733"),
     documentLinks: createDocumentLinks("case001"),
@@ -84,7 +84,7 @@ export const mockCases: Case[] = [
     processStage: PROCESS_STAGES[2],
     nextActivity: "Juicio Oral",
     subject: CaseSubject.PENAL,
-    assignedLawyerId: "ExyIt8HKmsOoZhkjaIUdC8Rdm733", // Asegurarse que los casos asignados usen el nuevo ID si corresponde
+    assignedLawyerId: "ExyIt8HKmsOoZhkjaIUdC8Rdm733", 
     lastActivityDate: new Date().toISOString(), // Today
     reminders: createReminders("case003", "ExyIt8HKmsOoZhkjaIUdC8Rdm733"),
     documentLinks: [],
