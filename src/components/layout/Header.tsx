@@ -5,8 +5,9 @@ import Link from "next/link";
 import {
   Bell,
   LogOut,
-  // Menu, // Menu ya no se usa para un sidebar fijo/sheet
   UserCircle,
+  Menu, // Re-añadido para el menú móvil
+  Landmark, // Icono para Suscripciones/Planes
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,25 +18,23 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-// Sheet y SidebarNav ya no se usan aquí si eliminamos el menú de hamburguesa
-// import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-// import { SidebarNav } from "./SidebarNav"; 
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { SidebarNav } from "./SidebarNav"; 
 import { useAuth } from "@/hooks/useAuth";
-// import { useState } from "react"; // useState para mobile menu ya no es necesario
+import { useState } from "react";
 
 export function Header() {
   const { currentUser, logout } = useAuth();
-  // const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Ya no es necesario
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // const handleMobileLinkClick = () => { // Ya no es necesario
-  //   setIsMobileMenuOpen(false);
-  // };
+  const handleMobileLinkClick = () => {
+    setIsMobileMenuOpen(false);
+  };
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6 shadow-sm">
-      {/* El botón de menú (SheetTrigger) se elimina */}
-      {/* 
-      <div>
+      
+      <div className="md:hidden"> {/* Menú de hamburguesa solo en móvil */}
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
             <Button variant="outline" size="icon">
@@ -45,18 +44,18 @@ export function Header() {
           </SheetTrigger>
           <SheetContent 
             side="left" 
-            className="flex flex-col p-0 bg-sidebar text-sidebar-foreground"
+            className="flex flex-col p-0 bg-sidebar text-sidebar-foreground w-[280px] sm:w-[320px]" // Ajustar ancho si es necesario
           >
             <SheetHeader className="p-4 border-b border-sidebar-border">
-              <SheetTitle>Menú Principal</SheetTitle>
+              <SheetTitle className="text-sidebar-foreground">Menú Principal</SheetTitle>
             </SheetHeader>
             <SidebarNav isMobile={true} onLinkClick={handleMobileLinkClick} />
           </SheetContent>
         </Sheet>
       </div>
-      */}
+      
 
-      <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
+      <div className="flex w-full items-center gap-4 md:ml-0"> {/* md:ml-0 para que no haya tanto margen */}
         <Link href="/dashboard" className="text-xl font-semibold hover:text-primary transition-colors">
           YASI K'ARI
         </Link>
@@ -77,6 +76,13 @@ export function Header() {
                 {currentUser?.name || "Usuario"}
                 <p className="text-xs text-muted-foreground font-normal">{currentUser?.email}</p>
               </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/subscribe">
+                  <Landmark className="mr-2 h-4 w-4" />
+                  Planes y Suscripción
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout}>
                 <LogOut className="mr-2 h-4 w-4" />

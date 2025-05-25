@@ -1,13 +1,7 @@
-
 {
-  "name": "YASI K'ARI",
+  "name": "YASI K'ARI - Gestión Legal Inteligente",
   "short_name": "YASI K'ARI",
-  "description": "Gestión de Casos Legales - YASI K'ARI",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#F5F5F5",
-  "theme_color": "#526691",
-  "orientation": "portrait-primary",
+  "description": "Sistema inteligente para la gestión de casos legales, recordatorios y notificaciones.",
   "icons": [
     {
       "src": "/icons/icon-72x72.png",
@@ -50,5 +44,13 @@
       "sizes": "512x512",
       "type": "image/png"
     }
-  ]
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "background_color": "#F5F5F5",
+  "theme_color": "#3F51B5",
+  "scope": "/",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false
 }
