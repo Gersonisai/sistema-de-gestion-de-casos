@@ -17,11 +17,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react"; // Added React for JSX
 import { Loader2, Building, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
-import { UserRole } from "@/lib/types"; // UserRole for the admin
+// UserRole no es necesario importar aquí ya que se usa indirectamente via AuthContext
 
 const formSchema = z.object({
   organizationName: z.string().min(3, { message: "El nombre de la organización debe tener al menos 3 caracteres." }),
@@ -36,11 +36,11 @@ const formSchema = z.object({
 
 type RegisterOrganizationFormValues = z.infer<typeof formSchema>;
 
-export default function RegisterOrganizationPage() {
-  const { registerOrganizationAdmin } = useAuth(); // We'll add this function to AuthContext
+function RegisterOrganizationFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { registerOrganizationAdmin } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
@@ -50,9 +50,9 @@ export default function RegisterOrganizationPage() {
     if (plan) {
       setSelectedPlan(plan);
     } else {
-      // Redirect if no plan is specified, or show an error
+      // Esto se ejecutará si 'plan' no está en los searchParams después de que Suspense resuelva
       toast({ variant: "destructive", title: "Error", description: "No se ha especificado un plan. Por favor, seleccione un plan primero." });
-      router.push("/subscribe");
+      router.replace("/subscribe"); // Usar replace para no añadir al historial
     }
   }, [searchParams, router, toast]);
 
@@ -75,14 +75,12 @@ export default function RegisterOrganizationPage() {
     setIsLoading(true);
     setErrorMessage(null);
     
-    // The registerOrganizationAdmin function in AuthContext will handle Firebase user creation
-    // and simulation of organization creation.
     const result = await registerOrganizationAdmin(
       values.organizationName,
       values.adminName,
       values.adminEmail,
       values.adminPassword,
-      selectedPlan // Pass the selected plan for context
+      selectedPlan
     );
     setIsLoading(false);
 
@@ -111,15 +109,14 @@ export default function RegisterOrganizationPage() {
   }
   
   if (!selectedPlan) {
+    // Esto se mostrará brevemente mientras useEffect redirige si el plan no se encuentra
+    // o si el componente se renderiza antes de que searchParams esté disponible (manejado por Suspense)
     return (
-      <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
     );
   }
 
   return (
-    <main className="flex items-center justify-center min-h-screen bg-gradient-to-br from-background to-secondary p-4">
       <Card className="w-full max-w-lg shadow-xl">
         <CardHeader className="text-center">
           <Building className="mx-auto h-10 w-10 text-primary mb-2" />
@@ -218,6 +215,21 @@ export default function RegisterOrganizationPage() {
           </div>
         </CardContent>
       </Card>
+  );
+}
+
+
+export default function RegisterOrganizationPage() {
+  return (
+    <main className="flex items-center justify-center min-h-screen bg-gradient-to-br from-background to-secondary p-4">
+      <Suspense fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="ml-4">Cargando...</p>
+        </div>
+      }>
+        <RegisterOrganizationFormContent />
+      </Suspense>
     </main>
   );
 }
