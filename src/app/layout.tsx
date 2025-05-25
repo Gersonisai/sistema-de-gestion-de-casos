@@ -22,41 +22,39 @@ export const metadata: Metadata = {
   title: 'YASI K\'ARI - Gestión Legal',
   description: 'Sistema inteligente para la gestión de casos legales, recordatorios y notificaciones.',
   applicationName: "YASI K'ARI",
-  manifest: '/manifest.json', // Enlace al manifest.json
+  manifest: '/manifest.json', // Link to the manifest.json
   appleWebApp: {
     capable: true,
     title: "YASI K'ARI",
-    statusBarStyle: "default", 
+    statusBarStyle: "default",
   },
   formatDetection: {
     telephone: false,
   },
   icons: {
     shortcut: "/icons/favicon.ico",
-    apple: [ 
+    apple: [
       { url: "/icons/icon-152x152.png", sizes: "152x152" },
       { url: "/icons/icon-180x180.png", sizes: "180x180" },
       { url: "/icons/icon-167x167.png", sizes: "167x167" },
-      { url: "/icons/icon-192x192.png", sizes: "192x192" }, 
+      { url: "/icons/icon-192x192.png", sizes: "192x192" }, // Often used by Android too
     ],
-    other: [
+    other: [ // Simplified to essential favicons, PWA icons are in manifest.json
        { rel: 'icon', type: 'image/png', sizes: '32x32', url: '/icons/favicon-32x32.png' },
        { rel: 'icon', type: 'image/png', sizes: '16x16', url: '/icons/favicon-16x16.png' },
-       // PWA icons referenced in manifest.json
-       { rel: 'icon', type: 'image/png', sizes: '72x72', url: '/icons/icon-72x72.png' },
-       { rel: 'icon', type: 'image/png', sizes: '96x96', url: '/icons/icon-96x96.png' },
-       { rel: 'icon', type: 'image/png', sizes: '128x128', url: '/icons/icon-128x128.png' },
-       { rel: 'icon', type: 'image/png', sizes: '144x144', url: '/icons/icon-144x144.png' },
-       { rel: 'icon', type: 'image/png', sizes: '384x384', url: '/icons/icon-384x384.png' },
-       { rel: 'icon', type: 'image/png', sizes: '512x512', url: '/icons/icon-512x512.png' },
     ]
   },
+  other: { // Moved meta tags here
+    'msapplication-TileColor': '#3F51B5',
+    'msapplication-config': '/icons/browserconfig.xml',
+    'mobile-web-app-capable': 'yes',
+    'HandheldFriendly': 'true',
+  }
 };
 
 export const viewport: Viewport = {
-  themeColor: "#3F51B5", 
-  colorScheme: "light dark", 
-  // Ensure PWA related viewport settings are optimal
+  themeColor: "#3F51B5",
+  colorScheme: "light dark",
   initialScale: 1,
   width: 'device-width',
   viewportFit: 'cover', // Good for edge-to-edge displays on iOS
@@ -71,26 +69,15 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning={true}>
       <head>
-        {/* Meta tags for PWA and experience móvil are largely covered by `metadata` and `viewport` objects */}
-        {/* theme-color is in viewport */}
-        {/* manifest link is in metadata */}
-        
-        {/* Apple specific meta tags are in metadata.appleWebApp */}
-        {/* <meta name="apple-mobile-web-app-capable" content="yes" /> */}
-        {/* <meta name="apple-mobile-web-app-status-bar-style" content="default" /> */}
-        {/* <meta name="apple-mobile-web-app-title" content="YASI K'ARI" /> */}
-        
-        <meta name="msapplication-TileColor" content="#3F51B5" />
-        <meta name="msapplication-config" content="/icons/browserconfig.xml" />
-        <meta name="mobile-web-app-capable" content="yes" />
-
-        {/* Additional PWA related tags that might be beneficial */}
-        <meta name="HandheldFriendly" content="true" />
-        <meta name="description" content={metadata.description || "Gestión Legal Inteligente YASI K'ARI"} />
+        {/*
+          Next.js will automatically inject tags generated from the `metadata` and `viewport` exports,
+          as well as essential stylesheets and scripts.
+          The manual <head> section is kept minimal.
+        */}
       </head>
-      <body 
+      <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        suppressHydrationWarning={true} // Added here as well for good measure, though on html might be enough
+        suppressHydrationWarning={true} // Keep this for browser extension issues
       >
         <AuthProvider>
           <ClientEffects />
