@@ -32,7 +32,8 @@ export default function SubscribePage() {
       description: "Procediendo al registro de su organización. La integración con pasarelas de pago es una funcionalidad futura.",
       duration: 5000,
     });
-    router.push("/register-organization?plan=" + planName.toLowerCase().replace(' ', '_'));
+    // Usar regex global para reemplazar todos los espacios, aunque los nombres actuales son de una palabra
+    router.push("/register-organization?plan=" + planName.toLowerCase().replace(/ /g, '_'));
   };
 
   const handleStartFreeTrial = () => {
@@ -145,14 +146,11 @@ export default function SubscribePage() {
               )}
               {/* Botón de prueba gratuita específico para el plan básico ya está arriba */}
               {plan.ctaType === "contact" && (
-                 <Button
-                  className="w-full"
-                  size="lg"
-                  variant="outline"
-                  onClick={() => router.push('mailto:ventas@yasikari.com?subject=Solicitud de Demo Plan Empresarial')}
-                >
-                  {plan.actionText}
-                </Button>
+                 <Button asChild className="w-full" size="lg" variant="outline">
+                   <Link href="mailto:ventas@yasikari.com?subject=Solicitud de Demo Plan Empresarial">
+                     {plan.actionText}
+                   </Link>
+                 </Button>
               )}
             </CardFooter>
           </Card>
@@ -166,3 +164,4 @@ export default function SubscribePage() {
   );
 }
 
+    
