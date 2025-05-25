@@ -154,7 +154,7 @@ export function UserForm({ initialData, onSave, isEditMode }: UserFormProps) {
     <Card className="shadow-xl max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle className="text-2xl font-bold">
-          {isEditMode ? "Editar Usuario" : "Crear Nuevo Usuario (Admin)"}
+          {isEditMode ? "Editar Usuario" : "Crear Nuevo Usuario"}
         </CardTitle>
         <CardDescription>
           {isEditMode ? "Actualice los detalles del usuario." : "Complete la información para registrar un nuevo usuario."}
