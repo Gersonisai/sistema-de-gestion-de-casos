@@ -31,10 +31,8 @@ export default function NewUserPage() {
     // The register function from AuthContext now handles Firebase user creation
     // and the simulation of adding to mockUsers.
     // The role is passed from the form.
-    const result = await register(data.name, data.email, data.password, data.role);
-    return { ...result, newUserId: result.error ? undefined : "simulated-new-id-from-firebase-auth" }; // UserForm expects newUserId on success
-    // In a real app with Firestore, the register function in AuthContext might return the actual new user ID from Firestore.
-    // For now, UserForm handles toast/redirect.
+    // The register function now returns { success, error, newUserId }
+    return register(data.name, data.email, data.password, data.role);
   };
   
   if (authIsLoading || isClientLoading) {
