@@ -8,10 +8,11 @@ export const mockOrganizations: Organization[] = [
     id: "org_default_admin",
     name: "Bufete Administrador Principal (Sistema)",
     ownerId: "Uh8GnPZnGkNVpEqXwsPJJtTc8R63", // Default Admin's UID
-    plan: "system_admin", // Special plan for the super admin
+    plan: "system_admin",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }
+  // New organizations will be added here by registerOrganizationAdmin
 ];
 
 
@@ -20,23 +21,24 @@ export const mockUsers: User[] = [
     id: "Uh8GnPZnGkNVpEqXwsPJJtTc8R63", // Admin UID from Firebase
     email: "admin@lexcase.com",
     name: "Admin LexCase", // This is the platform admin
-    role: UserRole.ADMIN, // This role might be "SUPER_ADMIN" in a real multi-tenant app
-    organizationId: "org_default_admin", // Belongs to a special system organization
+    role: UserRole.ADMIN,
+    organizationId: "org_default_admin",
   },
   {
     id: "ExyIt8HKmsOoZhkjaIUdC8Rdm733", 
     email: "abogado1@lexcase.com",
     name: "Lic. Ana Pérez",
     role: UserRole.LAWYER,
-    organizationId: "org_default_admin", // Assuming they belong to the admin's org for now
+    organizationId: "org_default_admin",
   },
   {
-    id: "lawyer002_placeholder_uid", // Placeholder, should be updated if this user logs in via Firebase
+    id: "lawyer002_placeholder_uid",
     email: "abogado2@lexcase.com",
     name: "Lic. Carlos López",
     role: UserRole.LAWYER,
-    organizationId: "org_default_admin", // Assuming they belong to the admin's org for now
+    organizationId: "org_default_admin",
   },
+  // Users created via registration or by admin will be added here by AuthContext
 ];
 
 const createReminders = (caseId: string, userId: string): Reminder[] => [
@@ -76,7 +78,7 @@ export const mockCases: Case[] = [
     documentLinks: createDocumentLinks("case001"),
     createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    organizationId: "org_default_admin", // Assuming cases belong to the admin's org for now
+    organizationId: "org_default_admin", 
   },
   {
     id: "case002",

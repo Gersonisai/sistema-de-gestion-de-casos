@@ -18,9 +18,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Loader2, LogIn } from "lucide-react";
+import { Loader2, LogIn, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
+import { Separator } from "@/components/ui/separator";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Por favor ingrese un email válido." }),
@@ -51,23 +52,20 @@ export function LoginForm() {
       toast({ title: "Inicio de Sesión Exitoso", description: "Bienvenido a YASI K'ARI." });
       router.push("/dashboard");
     } else {
-      // Firebase auth errors are often generic for security reasons (e.g. "auth/invalid-credential")
-      // So, we provide a user-friendly message.
-      const firebaseErrorMsg = "Email o contraseña incorrectos. Verifique sus credenciales. Las cuentas son creadas por un administrador de consorcio.";
+      const firebaseErrorMsg = "Email o contraseña incorrectos, o la cuenta no existe en Firebase. Verifique sus credenciales. Las cuentas de administrador de consorcio se crean al suscribirse. Las cuentas de abogado son creadas por un administrador.";
       setErrorMessage(firebaseErrorMsg);
       toast({
         variant: "destructive",
         title: "Error de Inicio de Sesión",
         description: firebaseErrorMsg,
       });
-      form.setError("password", { type: "manual", message: " " }); // Clear previous specific message on password if any
+      form.setError("password", { type: "manual", message: " " }); 
     }
   }
 
   return (
     <Card className="w-full max-w-md shadow-xl">
       <CardHeader className="text-center">
-        {/* Logo eliminado según solicitud previa */}
         <CardTitle className="text-3xl font-bold text-primary mt-4">YASI K'ARI</CardTitle>
         <CardDescription>
           Ingrese sus credenciales para acceder al sistema.
@@ -115,14 +113,29 @@ export function LoginForm() {
             </Button>
           </form>
         </Form>
-         <div className="mt-6 text-center text-sm">
-          ¿Aún no tiene una organización en YASI K'ARI?{" "}
-          <Link href="/subscribe" className="underline text-primary hover:text-primary/80">
-            Vea nuestros planes o inicie una prueba gratuita.
-          </Link>
-        </div>
-        <div className="mt-4 text-center text-xs text-muted-foreground">
-            Si pertenece a una organización existente, su administrador debe crear su cuenta.
+         <Separator className="my-6" />
+         <div className="space-y-4 text-center">
+            <div>
+                <p className="text-sm text-muted-foreground mb-1">¿Nuevo en YASI K'ARI?</p>
+                <Button variant="outline" className="w-full" asChild>
+                    <Link href="/subscribe">
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Ver Planes o Iniciar Prueba Gratuita
+                    </Link>
+                </Button>
+            </div>
+            <div>
+                <p className="text-sm text-muted-foreground mb-1">¿Tiene un código de invitación?</p>
+                 <Button variant="secondary" className="w-full" asChild>
+                    <Link href="/register-invited">
+                        <KeySquare className="mr-2 h-4 w-4" />
+                        Unirse con Código de Invitación
+                    </Link>
+                </Button>
+            </div>
+         </div>
+        <div className="mt-6 text-center text-xs text-muted-foreground">
+            Si pertenece a una organización existente y no tiene código, su administrador debe crear su cuenta.
         </div>
       </CardContent>
     </Card>

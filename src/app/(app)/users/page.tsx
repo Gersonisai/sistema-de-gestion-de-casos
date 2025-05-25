@@ -9,9 +9,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { mockUsers } from "@/data/mockData";
-import type { User } from "@/lib/types";
-import { UserRole } from "@/lib/types";
+import { mockUsers, mockOrganizations } from "@/data/mockData";
+import type { User, Organization } from "@/lib/types";
+import { UserRole, PLAN_LIMITS } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -37,9 +37,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Copy } from "lucide-react";
 
 
 export default function UsersPage() {
@@ -49,23 +51,18 @@ export default function UsersPage() {
   const [isClientLoading, setIsClientLoading] = useState(true);
   const [usersToList, setUsersToList] = useState<User[]>([]);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [showCodeDialog, setShowCodeDialog] = useState(false);
 
   useEffect(() => {
     if (!authIsLoading) {
       if (!isAdmin) {
         router.replace("/dashboard"); 
       } else {
-        // In a multi-tenant app, an admin would only see users from their organization.
-        // For this simulation, the `currentUser` (admin) sees other users within their `organizationId`.
-        // The current `admin@lexcase.com` is a sort of "super admin" for now.
-        // If we want strict organization scoping, this filter needs to be more robust.
         const orgId = currentUser?.organizationId;
         if (orgId) {
             setUsersToList(mockUsers.filter(u => u.organizationId === orgId && u.id !== currentUser?.id));
         } else {
-            // Fallback for admin not associated with an org (should not happen with new flow)
-            // or for a "super admin" view if we decide to implement that concept.
-            // For now, if admin has no orgId, show all users except self.
             setUsersToList(mockUsers.filter(u => u.id !== currentUser?.id));
         }
         setIsClientLoading(false);
@@ -87,8 +84,6 @@ export default function UsersPage() {
 
   const handleDeleteConfirm = () => {
     if (userToDelete) {
-      // TODO: In a real app, call Firebase Admin SDK to delete user from Firebase Auth.
-      // For now, just remove from mockUsers.
       const userIndex = mockUsers.findIndex(u => u.id === userToDelete.id);
       if (userIndex > -1) {
         mockUsers.splice(userIndex, 1); 
@@ -98,6 +93,50 @@ export default function UsersPage() {
       setUserToDelete(null);
     }
   };
+
+  const handleGenerateInvitationCode = () => {
+    if (!currentUser || !currentUser.organizationId) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo identificar la organización del administrador." });
+      return;
+    }
+    const adminOrg = mockOrganizations.find(org => org.id === currentUser.organizationId);
+    if (!adminOrg) {
+      toast({ variant: "destructive", title: "Error", description: "Organización no encontrada." });
+      return;
+    }
+
+    const currentLawyersCount = mockUsers.filter(u => u.organizationId === adminOrg.id && u.role === UserRole.LAWYER).length;
+    const planLimits = PLAN_LIMITS[adminOrg.plan] || PLAN_LIMITS.trial_basic; // Fallback to trial_basic if plan not found
+
+    if (currentLawyersCount >= planLimits.maxLawyers) {
+      toast({
+        variant: "destructive",
+        title: "Límite de Abogados Alcanzado",
+        description: `Su plan "${adminOrg.plan}" permite un máximo de ${planLimits.maxLawyers} abogados. Ya ha alcanzado este límite.`,
+      });
+      return;
+    }
+
+    // Simulate code generation (in a real app, this would be a secure, unique code from backend)
+    const orgIdPart = adminOrg.id.substring(0, Math.min(adminOrg.id.length, 8)); // Use a part of org ID for simulation
+    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const code = `YASI-${orgIdPart}-${randomPart}`;
+    
+    setGeneratedCode(code);
+    setShowCodeDialog(true);
+  };
+
+  const copyToClipboard = () => {
+    if (generatedCode) {
+      navigator.clipboard.writeText(generatedCode).then(() => {
+        toast({ title: "Copiado", description: "Código de invitación copiado al portapapeles." });
+      }).catch(err => {
+        toast({ variant: "destructive", title: "Error al copiar", description: "No se pudo copiar el código." });
+        console.error('Error al copiar:', err);
+      });
+    }
+  };
+
 
   const getRoleDisplayName = (role: UserRole) => {
     switch (role) {
@@ -122,7 +161,7 @@ export default function UsersPage() {
         actionButton={
           <Button asChild>
             <Link href="/users/new">
-              <PlusCircle className="mr-2 h-5 w-5" /> Crear Nuevo Usuario (Abogado)
+              <PlusCircle className="mr-2 h-5 w-5" /> Crear Nuevo Usuario (Abogado/Admin)
             </Link>
           </Button>
         }
@@ -143,7 +182,7 @@ export default function UsersPage() {
           {usersToList.length === 0 ? (
              <div className="text-center py-10 text-muted-foreground">
                 <p className="text-lg">No hay otros usuarios en su organización para mostrar.</p>
-                <p className="text-sm">Puede crear nuevos usuarios (abogados) usando el botón de arriba.</p>
+                <p className="text-sm">Puede crear nuevos usuarios usando el botón de arriba.</p>
              </div>
           ) : (
             <div className="overflow-x-auto">
@@ -199,23 +238,23 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
-      {/* Placeholder for Invitation Code Management */}
+      {/* Invitation Code Management */}
       <Card className="shadow-lg">
         <CardHeader>
             <CardTitle className="flex items-center">
                 <KeySquare className="mr-2 h-6 w-6 text-primary" />
-                Gestión de Invitaciones (Próximamente)
+                Gestión de Invitaciones para Abogados
             </CardTitle>
              <CardDescription>
-              Genere y gestione códigos de invitación para que los abogados se unan a su organización.
+              Genere códigos de invitación para que los abogados se unan a su organización, dentro de los límites de su plan.
             </CardDescription>
         </CardHeader>
         <CardContent>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground mb-4">
                 Esta funcionalidad permitirá generar códigos únicos que los abogados podrán usar para registrarse y
-                unirse automáticamente a su consorcio, dentro de los límites de su plan de suscripción.
+                unirse automáticamente a su consorcio.
             </p>
-            <Button disabled className="mt-4">Generar Código de Invitación (Simulación)</Button>
+            <Button onClick={handleGenerateInvitationCode}>Generar Código de Invitación</Button>
         </CardContent>
       </Card>
 
@@ -236,6 +275,32 @@ export default function UsersPage() {
               <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
                 Eliminar Usuario
               </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {generatedCode && (
+        <AlertDialog open={showCodeDialog} onOpenChange={setShowCodeDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Código de Invitación Generado</AlertDialogTitle>
+              <AlertDialogDescription>
+                Comparta este código con el abogado que desea invitar a su organización:
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="my-4 p-3 bg-muted rounded-md flex items-center justify-between">
+                <span className="text-lg font-mono text-foreground">{generatedCode}</span>
+                <Button variant="ghost" size="icon" onClick={copyToClipboard} aria-label="Copiar código">
+                    <Copy className="h-5 w-5"/>
+                </Button>
+            </div>
+             <p className="text-xs text-muted-foreground">
+                El abogado deberá ingresar este código en la página de inicio de sesión, usando la opción "Unirse con Código de Invitación".
+                Este código es para un solo uso (simulación).
+            </p>
+            <AlertDialogFooter>
+              <AlertDialogAction onClick={() => { setGeneratedCode(null); setShowCodeDialog(false); }}>Entendido</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

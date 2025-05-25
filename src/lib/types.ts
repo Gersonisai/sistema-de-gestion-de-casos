@@ -10,7 +10,8 @@ export interface Organization {
   id: string;
   name: string;
   ownerId: string; // User ID of the admin who owns/created this organization
-  plan: string; // e.g., "basic", "premium", "trial_basic"
+  plan: "trial_basic" | "basic" | "premium" | "enterprise" | "system_admin"; // e.g., "basic", "premium", "trial_basic"
+  maxLawyers?: number; // Max lawyers allowed for this org's plan (optional, could be derived from plan)
   createdAt: string; // ISO date string
   updatedAt: string; // ISO date string
   // Potentially other settings like logo, custom color, etc.
@@ -75,3 +76,11 @@ export const PROCESS_STAGES = [
 ];
 
 export const CASE_SUBJECTS_OPTIONS = Object.values(CaseSubject);
+
+export const PLAN_LIMITS: Record<Organization['plan'], { maxLawyers: number }> = {
+  trial_basic: { maxLawyers: 2 }, // Example: Trial allows 2 lawyers
+  basic: { maxLawyers: 5 },
+  premium: { maxLawyers: 20 },
+  enterprise: { maxLawyers: Infinity }, // Or a very large number
+  system_admin: { maxLawyers: Infinity }, // System admin's org has no limits
+};
