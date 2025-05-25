@@ -18,7 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Loader2, LogIn, UserPlus } from "lucide-react";
+import { Loader2, LogIn, UserPlus, KeySquare } from "lucide-react"; // Added KeySquare here
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
@@ -52,7 +52,7 @@ export function LoginForm() {
       toast({ title: "Inicio de Sesión Exitoso", description: "Bienvenido a YASI K'ARI." });
       router.push("/dashboard");
     } else {
-      const firebaseErrorMsg = "Email o contraseña incorrectos, o la cuenta no existe en Firebase. Verifique sus credenciales. Las cuentas de administrador de consorcio se crean al suscribirse. Las cuentas de abogado son creadas por un administrador.";
+      const firebaseErrorMsg = "Email o contraseña incorrectos, o la cuenta no existe en Firebase. Verifique sus credenciales o regístrese si es un nuevo administrador de consorcio. Las cuentas de abogado son creadas por un administrador o mediante invitación.";
       setErrorMessage(firebaseErrorMsg);
       toast({
         variant: "destructive",
@@ -135,7 +135,7 @@ export function LoginForm() {
             </div>
          </div>
         <div className="mt-6 text-center text-xs text-muted-foreground">
-            Si pertenece a una organización existente y no tiene código, su administrador debe crear su cuenta.
+           Las cuentas de abogado son creadas por el administrador de su consorcio o mediante un código de invitación.
         </div>
       </CardContent>
     </Card>
