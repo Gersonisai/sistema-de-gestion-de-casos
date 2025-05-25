@@ -1,6 +1,6 @@
 
 import type { User, Case, Reminder, DocumentLink, Organization } from "@/lib/types";
-import { UserRole, CaseSubject, PROCESS_STAGES } from "@/lib/types";
+import { UserRole, CaseSubject, PROCESS_STAGES, THEME_PALETTES } from "@/lib/types";
 
 // Simulate a list of organizations/consorcios
 export const mockOrganizations: Organization[] = [
@@ -9,10 +9,19 @@ export const mockOrganizations: Organization[] = [
     name: "Bufete Administrador Principal (Sistema)",
     ownerId: "Uh8GnPZnGkNVpEqXwsPJJtTc8R63", // Default Admin's UID
     plan: "system_admin",
+    themePalette: THEME_PALETTES[0].id, // Default theme
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: "org_bufete_test_1",
+    name: "Bufete de Pruebas Uno",
+    ownerId: "admin_test_org_1_uid", // Placeholder UID for this org's admin
+    plan: "premium",
+    themePalette: THEME_PALETTES[1].id,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }
-  // New organizations will be added here by registerOrganizationAdmin
 ];
 
 
@@ -20,25 +29,38 @@ export const mockUsers: User[] = [
   {
     id: "Uh8GnPZnGkNVpEqXwsPJJtTc8R63", // Admin UID from Firebase
     email: "admin@lexcase.com",
-    name: "Admin LexCase", // This is the platform admin
+    name: "Admin Global YASI",
     role: UserRole.ADMIN,
-    organizationId: "org_default_admin",
+    organizationId: "org_default_admin", // Platform admin for the default "system" org
+  },
+  {
+    id: "admin_test_org_1_uid",
+    email: "admin.org1@yasikari.com",
+    name: "Admin Bufete Uno",
+    role: UserRole.ADMIN,
+    organizationId: "org_bufete_test_1",
   },
   {
     id: "ExyIt8HKmsOoZhkjaIUdC8Rdm733", 
     email: "abogado1@lexcase.com",
     name: "Lic. Ana Pérez",
     role: UserRole.LAWYER,
-    organizationId: "org_default_admin",
+    organizationId: "org_bufete_test_1",
   },
   {
     id: "lawyer002_placeholder_uid",
     email: "abogado2@lexcase.com",
     name: "Lic. Carlos López",
     role: UserRole.LAWYER,
-    organizationId: "org_default_admin",
+    organizationId: "org_bufete_test_1",
   },
-  // Users created via registration or by admin will be added here by AuthContext
+  {
+    id: "secretary001_placeholder_uid",
+    email: "secretaria1@lexcase.com",
+    name: "Sra. Laura Vargas",
+    role: UserRole.SECRETARY,
+    organizationId: "org_bufete_test_1",
+  },
 ];
 
 const createReminders = (caseId: string, userId: string): Reminder[] => [
@@ -78,7 +100,7 @@ export const mockCases: Case[] = [
     documentLinks: createDocumentLinks("case001"),
     createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    organizationId: "org_default_admin", 
+    organizationId: "org_bufete_test_1", 
   },
   {
     id: "case002",
@@ -94,7 +116,7 @@ export const mockCases: Case[] = [
     documentLinks: createDocumentLinks("case002"),
     createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    organizationId: "org_default_admin",
+    organizationId: "org_bufete_test_1",
   },
   {
     id: "case003",
@@ -110,7 +132,7 @@ export const mockCases: Case[] = [
     documentLinks: [],
     createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date().toISOString(),
-    organizationId: "org_default_admin",
+    organizationId: "org_bufete_test_1",
   },
   {
     id: "case004",
@@ -125,6 +147,22 @@ export const mockCases: Case[] = [
     documentLinks: [],
     createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    organizationId: "org_default_admin",
+    organizationId: "org_bufete_test_1",
+  },
+  {
+    id: "case005",
+    nurej: "202400001",
+    clientName: "Empresa Soluciones Globales",
+    cause: "Asesoría contractual",
+    processStage: PROCESS_STAGES[0],
+    nextActivity: "Revisión de borrador de contrato",
+    subject: CaseSubject.CIVIL,
+    assignedLawyerId: "lawyer002_placeholder_uid", 
+    lastActivityDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    reminders: createReminders("case005", "lawyer002_placeholder_uid"),
+    documentLinks: createDocumentLinks("case005"),
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    organizationId: "org_bufete_test_1", 
   }
 ];

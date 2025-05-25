@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { mockUsers, mockOrganizations } from "@/data/mockData";
 import type { User, Organization } from "@/lib/types";
-import { UserRole, PLAN_LIMITS } from "@/lib/types";
+import { UserRole, PLAN_LIMITS, USER_ROLE_NAMES } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -39,8 +39,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+// import { Input } from "@/components/ui/input"; // Not used directly
+// import { Label } from "@/components/ui/label"; // Not used directly
 import { Copy } from "lucide-react";
 
 
@@ -61,8 +61,10 @@ export default function UsersPage() {
       } else {
         const orgId = currentUser?.organizationId;
         if (orgId) {
+            // Admins see users from their own organization, excluding themselves
             setUsersToList(mockUsers.filter(u => u.organizationId === orgId && u.id !== currentUser?.id));
         } else {
+            // Fallback for system admin or if orgId is not set (should not happen for org admins)
             setUsersToList(mockUsers.filter(u => u.id !== currentUser?.id));
         }
         setIsClientLoading(false);
@@ -84,6 +86,7 @@ export default function UsersPage() {
 
   const handleDeleteConfirm = () => {
     if (userToDelete) {
+      // In a real app, this would call a Firebase function to delete the user from Auth and Firestore
       const userIndex = mockUsers.findIndex(u => u.id === userToDelete.id);
       if (userIndex > -1) {
         mockUsers.splice(userIndex, 1); 
@@ -105,20 +108,20 @@ export default function UsersPage() {
       return;
     }
 
-    const currentLawyersCount = mockUsers.filter(u => u.organizationId === adminOrg.id && u.role === UserRole.LAWYER).length;
-    const planLimits = PLAN_LIMITS[adminOrg.plan] || PLAN_LIMITS.trial_basic; // Fallback to trial_basic if plan not found
+    const currentTeamCount = mockUsers.filter(u => u.organizationId === adminOrg.id && (u.role === UserRole.LAWYER || u.role === UserRole.SECRETARY)).length;
+    // Assuming PLAN_LIMITS.maxLawyers also covers secretaries for simplicity, or create a new limit
+    const planLimits = PLAN_LIMITS[adminOrg.plan] || PLAN_LIMITS.trial_basic; 
 
-    if (currentLawyersCount >= planLimits.maxLawyers) {
+    if (currentTeamCount >= planLimits.maxLawyers) { // Using maxLawyers for total team members for now
       toast({
         variant: "destructive",
-        title: "Límite de Abogados Alcanzado",
-        description: `Su plan "${adminOrg.plan}" permite un máximo de ${planLimits.maxLawyers} abogados. Ya ha alcanzado este límite.`,
+        title: "Límite de Miembros del Equipo Alcanzado",
+        description: `Su plan "${adminOrg.plan}" permite un máximo de ${planLimits.maxLawyers} abogados/secretarias. Ya ha alcanzado este límite.`,
       });
       return;
     }
 
-    // Simulate code generation (in a real app, this would be a secure, unique code from backend)
-    const orgIdPart = adminOrg.id.substring(0, Math.min(adminOrg.id.length, 8)); // Use a part of org ID for simulation
+    const orgIdPart = adminOrg.id.substring(0, Math.min(adminOrg.id.length, 8));
     const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
     const code = `YASI-${orgIdPart}-${randomPart}`;
     
@@ -137,13 +140,8 @@ export default function UsersPage() {
     }
   };
 
-
   const getRoleDisplayName = (role: UserRole) => {
-    switch (role) {
-      case UserRole.ADMIN: return "Administrador";
-      case UserRole.LAWYER: return "Abogado";
-      default: return role;
-    }
+    return USER_ROLE_NAMES[role] || role;
   };
 
   if (authIsLoading || isClientLoading) {
@@ -161,7 +159,7 @@ export default function UsersPage() {
         actionButton={
           <Button asChild>
             <Link href="/users/new">
-              <PlusCircle className="mr-2 h-5 w-5" /> Crear Nuevo Usuario (Abogado/Admin)
+              <PlusCircle className="mr-2 h-5 w-5" /> Crear Nuevo Usuario
             </Link>
           </Button>
         }
@@ -171,10 +169,10 @@ export default function UsersPage() {
           <div className="flex justify-between items-center">
             <CardTitle className="flex items-center">
               <UsersIcon className="mr-2 h-6 w-6 text-primary" />
-              Lista de Usuarios
+              Lista de Usuarios de su Organización
             </CardTitle>
             <CardDescription>
-              Total de usuarios en su organización: {usersToList.length}
+              Total: {usersToList.length}
             </CardDescription>
           </div>
         </CardHeader>
@@ -201,7 +199,7 @@ export default function UsersPage() {
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
-                        <Badge variant={user.role === UserRole.ADMIN ? "default" : "secondary"}>
+                        <Badge variant={user.role === UserRole.ADMIN ? "default" : (user.role === UserRole.SECRETARY ? "outline" : "secondary")}>
                           {getRoleDisplayName(user.role)}
                         </Badge>
                       </TableCell>
@@ -238,20 +236,19 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
-      {/* Invitation Code Management */}
       <Card className="shadow-lg">
         <CardHeader>
             <CardTitle className="flex items-center">
                 <KeySquare className="mr-2 h-6 w-6 text-primary" />
-                Gestión de Invitaciones para Abogados
+                Gestión de Invitaciones para Miembros del Equipo
             </CardTitle>
              <CardDescription>
-              Genere códigos de invitación para que los abogados se unan a su organización, dentro de los límites de su plan.
+              Genere códigos de invitación para que los abogados o secretarias se unan a su organización, dentro de los límites de su plan.
             </CardDescription>
         </CardHeader>
         <CardContent>
             <p className="text-muted-foreground mb-4">
-                Esta funcionalidad permitirá generar códigos únicos que los abogados podrán usar para registrarse y
+                Esta funcionalidad permitirá generar códigos únicos que los miembros del equipo podrán usar para registrarse y
                 unirse automáticamente a su consorcio.
             </p>
             <Button onClick={handleGenerateInvitationCode}>Generar Código de Invitación</Button>
@@ -286,7 +283,7 @@ export default function UsersPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Código de Invitación Generado</AlertDialogTitle>
               <AlertDialogDescription>
-                Comparta este código con el abogado que desea invitar a su organización:
+                Comparta este código con el miembro del equipo que desea invitar a su organización:
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="my-4 p-3 bg-muted rounded-md flex items-center justify-between">
@@ -296,8 +293,8 @@ export default function UsersPage() {
                 </Button>
             </div>
              <p className="text-xs text-muted-foreground">
-                El abogado deberá ingresar este código en la página de inicio de sesión, usando la opción "Unirse con Código de Invitación".
-                Este código es para un solo uso (simulación).
+                El miembro del equipo deberá ingresar este código en la página de inicio de sesión, usando la opción "Unirse con Código de Invitación".
+                Este código es para un solo uso (simulación) y es válido para un abogado o secretaria.
             </p>
             <AlertDialogFooter>
               <AlertDialogAction onClick={() => { setGeneratedCode(null); setShowCodeDialog(false); }}>Entendido</AlertDialogAction>

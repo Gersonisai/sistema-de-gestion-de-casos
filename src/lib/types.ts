@@ -2,8 +2,14 @@
 export enum UserRole {
   ADMIN = "admin", // Admin of an organization/consorcio
   LAWYER = "lawyer",
-  // Could add SUPER_ADMIN for platform-level administration later
+  SECRETARY = "secretary", // New role
 }
+
+export const USER_ROLE_NAMES: Record<UserRole, string> = {
+  [UserRole.ADMIN]: "Administrador",
+  [UserRole.LAWYER]: "Abogado",
+  [UserRole.SECRETARY]: "Secretaria/o",
+};
 
 // Represents an organization or "consorcio"
 export interface Organization {
@@ -11,10 +17,9 @@ export interface Organization {
   name: string;
   ownerId: string; // User ID of the admin who owns/created this organization
   plan: "trial_basic" | "basic" | "premium" | "enterprise" | "system_admin"; // e.g., "basic", "premium", "trial_basic"
-  maxLawyers?: number; // Max lawyers allowed for this org's plan (optional, could be derived from plan)
+  themePalette?: string; // e.g., "default", "ocean", "forest"
   createdAt: string; // ISO date string
   updatedAt: string; // ISO date string
-  // Potentially other settings like logo, custom color, etc.
 }
 
 export interface User {
@@ -39,14 +44,12 @@ export interface Reminder {
   date: string; // ISO date string
   message: string;
   createdBy: string; // User ID
-  // organizationId?: string; // To scope reminders per organization
 }
 
 export interface DocumentLink {
   id: string;
   name: string;
   url: string; // OneDrive URL
-  // organizationId?: string; // To scope documents per organization
 }
 
 export interface Case {
@@ -78,9 +81,20 @@ export const PROCESS_STAGES = [
 export const CASE_SUBJECTS_OPTIONS = Object.values(CaseSubject);
 
 export const PLAN_LIMITS: Record<Organization['plan'], { maxLawyers: number }> = {
-  trial_basic: { maxLawyers: 2 }, // Example: Trial allows 2 lawyers
+  trial_basic: { maxLawyers: 2 },
   basic: { maxLawyers: 5 },
   premium: { maxLawyers: 20 },
-  enterprise: { maxLawyers: Infinity }, // Or a very large number
-  system_admin: { maxLawyers: Infinity }, // System admin's org has no limits
+  enterprise: { maxLawyers: Infinity },
+  system_admin: { maxLawyers: Infinity },
 };
+
+export const THEME_PALETTES = [
+  { id: "default", name: "Predeterminada YASI K'ARI" },
+  { id: "ocean-blue", name: "Azul Océano Corporativo" },
+  { id: "forest-green", name: "Verde Bosque Sereno" },
+  { id: "crimson-red", name: "Rojo Carmesí Elegante" },
+  { id: "golden-sand", name: "Arena Dorada Clásica" },
+  { id: "lavender-mist", name: "Niebla Lavanda Moderna" },
+] as const;
+
+export type ThemePaletteId = typeof THEME_PALETTES[number]['id'];

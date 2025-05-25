@@ -1,6 +1,7 @@
+
 "use client";
 
-import type { Case, User } from "@/lib/types";
+import type { Case } from "@/lib/types";
 import { UserRole } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { mockUsers } from "@/data/mockData"; // For finding lawyer name
+import { mockUsers } from "@/data/mockData"; 
 
 interface CaseListItemProps {
   caseItem: Case;
@@ -18,18 +19,19 @@ interface CaseListItemProps {
 }
 
 export function CaseListItem({ caseItem, onDelete }: CaseListItemProps) {
-  const { isAdmin, currentUser } = useAuth();
+  const { isAdmin, isLawyer, isSecretary, currentUser } = useAuth();
   const assignedLawyer = mockUsers.find(u => u.id === caseItem.assignedLawyerId);
 
-  const canEdit = isAdmin || (currentUser?.role === UserRole.LAWYER && caseItem.assignedLawyerId === currentUser?.id);
-  const canDelete = isAdmin;
+  // Secretaries and Admins can edit any case in their org. Lawyers can only edit their assigned cases.
+  const canEdit = isAdmin || isSecretary || (isLawyer && caseItem.assignedLawyerId === currentUser?.id);
+  const canDelete = isAdmin; // Only Admins can delete
 
   const formattedLastActivityDate = caseItem.lastActivityDate 
     ? format(parseISO(caseItem.lastActivityDate), "PPP", { locale: es })
     : "N/A";
 
   return (
-    <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+    <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
       <CardHeader>
         <div className="flex justify-between items-start">
           <CardTitle className="text-xl font-semibold text-primary">{caseItem.clientName}</CardTitle>
@@ -39,7 +41,7 @@ export function CaseListItem({ caseItem, onDelete }: CaseListItemProps) {
         </div>
         <CardDescription>NUREJ: {caseItem.nurej}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 flex-grow">
         <div className="flex items-center text-sm text-muted-foreground">
           <Briefcase className="mr-2 h-4 w-4 text-accent" />
           <strong>Causa:</strong> <span className="ml-1 truncate">{caseItem.cause}</span>
@@ -69,7 +71,7 @@ export function CaseListItem({ caseItem, onDelete }: CaseListItemProps) {
             </div>
         )}
       </CardContent>
-      <CardFooter className="flex justify-end gap-2">
+      <CardFooter className="flex justify-end gap-2 pt-4">
         <Button variant="outline" size="sm" asChild>
           <Link href={`/cases/${caseItem.id}`}>
             <Eye className="mr-1 h-4 w-4" /> Ver

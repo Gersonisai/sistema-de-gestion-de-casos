@@ -11,6 +11,7 @@ import { CalendarCheck, Loader2, AlertTriangle, ExternalLink, UserSquare, Calend
 import { useAuth } from "@/hooks/useAuth";
 import { mockCases, mockUsers } from "@/data/mockData";
 import type { Reminder, Case } from "@/lib/types"; 
+import { UserRole } from "@/lib/types";
 import { format, parseISO, isToday, isFuture } from "date-fns";
 import { es } from "date-fns/locale/es";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -26,7 +27,7 @@ interface ExtendedReminder extends Reminder {
 }
 
 export default function RemindersPage() {
-  const { currentUser, isAdmin, isLawyer, isLoading: authIsLoading } = useAuth();
+  const { currentUser, isAdmin, isLawyer, isSecretary, isLoading: authIsLoading } = useAuth();
   const [allUserReminders, setAllUserReminders] = useState<ExtendedReminder[]>([]);
   const [isLoadingReminders, setIsLoadingReminders] = useState(true);
   const [showAddReminderDialog, setShowAddReminderDialog] = useState(false);
@@ -35,19 +36,21 @@ export default function RemindersPage() {
 
 
   const fetchAndSetReminders = useCallback(() => {
-    if (!currentUser) {
+    if (!currentUser || !currentUser.organizationId) {
       setIsLoadingReminders(false);
       setSelectableCases([]);
+      setAllUserReminders([]);
       return;
     }
 
     setIsLoadingReminders(true);
 
     let relevantCases: Case[];
-    if (isAdmin) {
-      relevantCases = [...mockCases]; // Use a copy for selectable cases
-    } else if (isLawyer) {
-      relevantCases = mockCases.filter(c => c.assignedLawyerId === currentUser.id);
+    // Admins and Secretaries see all cases from their organization
+    if (isAdmin || isSecretary) {
+      relevantCases = mockCases.filter(c => c.organizationId === currentUser.organizationId);
+    } else if (isLawyer) { // Lawyers see only their assigned cases within their organization
+      relevantCases = mockCases.filter(c => c.organizationId === currentUser.organizationId && c.assignedLawyerId === currentUser.id);
     } else {
       relevantCases = [];
     }
@@ -56,8 +59,9 @@ export default function RemindersPage() {
     const extractedReminders: ExtendedReminder[] = [];
     relevantCases.forEach(c => {
       let lawyerName: string | undefined = undefined;
-      if (isAdmin && c.assignedLawyerId) {
-        const lawyer = mockUsers.find(u => u.id === c.assignedLawyerId);
+      // Admin and Secretary can see who is assigned
+      if ((isAdmin || isSecretary) && c.assignedLawyerId) {
+        const lawyer = mockUsers.find(u => u.id === c.assignedLawyerId && u.organizationId === currentUser.organizationId);
         lawyerName = lawyer?.name;
       }
 
@@ -76,7 +80,7 @@ export default function RemindersPage() {
     
     setAllUserReminders(extractedReminders);
     setIsLoadingReminders(false);
-  }, [currentUser, isAdmin, isLawyer]);
+  }, [currentUser, isAdmin, isLawyer, isSecretary]);
 
   useEffect(() => {
     if (!authIsLoading) {
@@ -91,9 +95,9 @@ export default function RemindersPage() {
   ) => {
     if (!currentUser) return;
 
-    const targetCaseIndex = mockCases.findIndex(c => c.id === caseId);
+    const targetCaseIndex = mockCases.findIndex(c => c.id === caseId && c.organizationId === currentUser.organizationId);
     if (targetCaseIndex === -1) {
-      toast({ variant: "destructive", title: "Error", description: "Caso no encontrado." });
+      toast({ variant: "destructive", title: "Error", description: "Caso no encontrado en su organización." });
       return;
     }
 
@@ -103,14 +107,12 @@ export default function RemindersPage() {
       createdBy: currentUser.id,
     };
 
-    // Update the mockCases data source directly
     mockCases[targetCaseIndex].reminders.push(newReminder);
-    mockCases[targetCaseIndex].updatedAt = new Date().toISOString(); // Also update case's updatedAt
+    mockCases[targetCaseIndex].updatedAt = new Date().toISOString(); 
 
-    // Re-fetch and re-filter all reminders to update the view
     fetchAndSetReminders(); 
-    
     setShowAddReminderDialog(false); 
+    toast({ title: "Recordatorio Añadido", description: "El nuevo recordatorio ha sido añadido." });
   };
 
 
@@ -138,13 +140,15 @@ export default function RemindersPage() {
       </div>
     );
   }
+  
+  const canAddReminders = isAdmin || isLawyer || isSecretary;
 
   return (
     <div className="container mx-auto py-8">
       <PageHeader 
         title="Mis Recordatorios"
         actionButton={
-          (isAdmin || isLawyer) && ( // Only admins/lawyers can add reminders
+          canAddReminders && (
             <Button onClick={() => setShowAddReminderDialog(true)}>
               <CalendarPlus className="mr-2 h-4 w-4" /> Añadir Nuevo Recordatorio
             </Button>
@@ -183,7 +187,7 @@ export default function RemindersPage() {
                         <p className="text-muted-foreground">
                           Caso: <Link href={`/cases/${reminder.caseId}`} className="text-accent hover:underline font-medium">{reminder.caseClientName}</Link> ({reminder.caseNurej})
                         </p>
-                        {isAdmin && reminder.assignedLawyerName && (
+                        {(isAdmin || isSecretary) && reminder.assignedLawyerName && (
                            <p className="text-muted-foreground flex items-center">
                              <UserSquare className="mr-2 h-4 w-4 text-muted-foreground" />
                              Abogado: {reminder.assignedLawyerName}
@@ -236,7 +240,7 @@ export default function RemindersPage() {
                         <p className="text-muted-foreground">
                           Caso: <Link href={`/cases/${reminder.caseId}`} className="text-accent hover:underline font-medium">{reminder.caseClientName}</Link> ({reminder.caseNurej})
                         </p>
-                        {isAdmin && reminder.assignedLawyerName && (
+                        {(isAdmin || isSecretary) && reminder.assignedLawyerName && (
                            <p className="text-muted-foreground flex items-center">
                              <UserSquare className="mr-2 h-4 w-4 text-muted-foreground" />
                              Abogado: {reminder.assignedLawyerName}
@@ -272,9 +276,9 @@ export default function RemindersPage() {
             />
           ) : (
             <div className="py-4 text-center text-muted-foreground">
-              <p>No hay casos disponibles para añadir recordatorios.</p>
+              <p>No hay casos disponibles en su organización para añadir recordatorios.</p>
               {isLawyer && <p className="text-sm">Asegúrese de tener casos asignados.</p>}
-              {isAdmin && <p className="text-sm">Asegúrese de que existan casos en el sistema.</p>}
+              {(isAdmin || isSecretary) && <p className="text-sm">Asegúrese de que existan casos en su organización.</p>}
             </div>
           )}
         </DialogContent>
@@ -283,4 +287,3 @@ export default function RemindersPage() {
     </div>
   );
 }
-    

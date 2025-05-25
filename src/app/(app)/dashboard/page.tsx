@@ -10,7 +10,7 @@ import type { Case, CaseSubject } from "@/lib/types";
 import { UserRole, CASE_SUBJECTS_OPTIONS } from "@/lib/types";
 import { mockCases as initialMockCases, mockUsers } from "@/data/mockData";
 import { useAuth } from "@/hooks/useAuth";
-import { PlusCircle, Search, Filter, Briefcase, BellRing, Users as UsersIcon, ArrowDownUp, ArrowUpDown, Settings, FolderPlus } from "lucide-react";
+import { PlusCircle, Search, Filter, Briefcase, BellRing, Users as UsersIcon, ArrowDownUp, ArrowUpDown, Settings, FolderPlus, Building } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -27,7 +27,7 @@ import { isFuture, isToday, parseISO } from "date-fns";
 type SortField = "lastActivityDate" | "clientName" | "nurej" | "createdAt";
 type SortDirection = "asc" | "desc";
 
-const ALL_SUBJECTS_FILTER_KEY = "ALL_SUBJECTS_FILTER_KEY_VALUE"; // Ensure this is not an empty string
+const ALL_SUBJECTS_FILTER_KEY = "ALL_SUBJECTS_FILTER_KEY_VALUE"; 
 
 const sortOptions: { value: SortField; label: string }[] = [
   { value: "lastActivityDate", label: "Fecha Última Actividad" },
@@ -43,7 +43,7 @@ const sortDirectionOptions: { value: SortDirection; label: string }[] = [
 
 
 export default function DashboardPage() {
-  const { currentUser, isAdmin, isLawyer } = useAuth();
+  const { currentUser, isAdmin, isLawyer, isSecretary } = useAuth();
   const [cases, setCases] = useState<Case[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [subjectFilter, setSubjectFilter] = useState<string>(ALL_SUBJECTS_FILTER_KEY);
@@ -52,7 +52,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let userCases = initialMockCases;
-    if (currentUser?.role === UserRole.LAWYER) {
+    if (currentUser?.organizationId) {
+      userCases = initialMockCases.filter(c => c.organizationId === currentUser.organizationId);
+      if (currentUser.role === UserRole.LAWYER) {
+        userCases = userCases.filter(c => c.assignedLawyerId === currentUser.id);
+      }
+      // Admins and Secretaries see all cases for their organization.
+    } else if (currentUser?.role === UserRole.LAWYER) { 
+      // Fallback if orgId isn't set but role is lawyer (legacy)
       userCases = initialMockCases.filter(c => c.assignedLawyerId === currentUser.id);
     }
     setCases(userCases);
@@ -91,10 +98,19 @@ export default function DashboardPage() {
   }, [cases, searchTerm, subjectFilter, sortField, sortDirection]);
 
   const stats = useMemo(() => {
-    const isUserAdmin = isAdmin;
-    const primaryStatCount = isUserAdmin ? initialMockCases.length : cases.length;
-    const primaryStatTitle = isUserAdmin ? "Total de Casos (Sistema)" : "Mis Casos Asignados";
-    const relevantCasesForReminders = isUserAdmin ? initialMockCases : cases;
+    const isUserAdminOrSecretary = isAdmin || isSecretary;
+    // Primary stat: all cases in org for admin/secretary, assigned for lawyer
+    const primaryStatCases = isUserAdminOrSecretary 
+      ? cases // Cases are already filtered by org for admin/secretary
+      : cases.filter(c => c.assignedLawyerId === currentUser?.id); 
+    const primaryStatCount = primaryStatCases.length;
+    
+    let primaryStatTitle = "Mis Casos Asignados";
+    if (isAdmin) primaryStatTitle = "Total Casos (Organización)";
+    if (isSecretary) primaryStatTitle = "Total Casos (Organización)";
+
+    // Reminders: based on cases visible to the current role
+    const relevantCasesForReminders = isUserAdminOrSecretary ? cases : primaryStatCases;
     const upcomingRemindersCount = relevantCasesForReminders.reduce((acc, currentCaseItem) => {
       const upcoming = currentCaseItem.reminders.filter(r => {
         const reminderDate = parseISO(r.date);
@@ -102,12 +118,17 @@ export default function DashboardPage() {
       }).length;
       return acc + upcoming;
     }, 0);
-    const totalLawyersCount = isUserAdmin ? mockUsers.filter(u => u.role === UserRole.LAWYER).length : undefined;
+    
+    // Total team members for admin
+    const totalTeamMembersCount = isAdmin && currentUser?.organizationId 
+        ? mockUsers.filter(u => u.organizationId === currentUser.organizationId && (u.role === UserRole.LAWYER || u.role === UserRole.SECRETARY)).length 
+        : undefined;
     
     let chartData: { name: string; count: number; }[] = [];
-    if (isUserAdmin) {
-      const relevantCasesForChart = initialMockCases; // Admins see all cases in chart
-      const casesBySubjectData = relevantCasesForChart.reduce((acc, currentCaseItem) => {
+    // Chart data based on all cases in the organization for admin/secretary
+    if (isUserAdminOrSecretary && currentUser?.organizationId) {
+      const orgCasesForChart = initialMockCases.filter(c => c.organizationId === currentUser.organizationId);
+      const casesBySubjectData = orgCasesForChart.reduce((acc, currentCaseItem) => {
         const subject = currentCaseItem.subject;
         acc[subject] = (acc[subject] || 0) + 1;
         return acc;
@@ -118,23 +139,21 @@ export default function DashboardPage() {
       })).filter(item => item.count > 0);
     }
 
-
     return {
       primaryStatCount,
       primaryStatTitle,
       upcomingRemindersCount,
-      totalLawyersCount,
+      totalTeamMembersCount,
       chartData
     };
-  }, [cases, isAdmin]);
+  }, [cases, isAdmin, isSecretary, currentUser]);
 
   const chartConfig = {
     count: { label: "Casos", color: "hsl(var(--primary))" },
   } satisfies ChartConfig;
 
-  const NavCard = ({ href, icon: Icon, title, description, adminOnly = false, lawyerAndAdmin = false }: { href: string, icon: React.ElementType, title: string, description: string, adminOnly?: boolean, lawyerAndAdmin?: boolean }) => {
-    if (adminOnly && !isAdmin) return null;
-    if (lawyerAndAdmin && !isAdmin && !isLawyer) return null; // Show if lawyer OR admin
+  const NavCard = ({ href, icon: Icon, title, description, allowedRoles }: { href: string, icon: React.ElementType, title: string, description: string, allowedRoles: UserRole[] }) => {
+    if (!currentUser?.role || !allowedRoles.includes(currentUser.role)) return null;
     
     return (
       <Link href={href} className="block hover:shadow-lg transition-shadow rounded-lg">
@@ -155,7 +174,6 @@ export default function DashboardPage() {
     <div className="container mx-auto py-2">
       <PageHeader title="Panel de Control YASI K'ARI" />
 
-      {/* Stats Cards */}
       <h2 className="text-xl font-semibold mb-3 text-foreground">Resumen General</h2>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
         <Link href="/dashboard#case-list-section" className="block hover:shadow-lg transition-shadow rounded-lg">
@@ -167,7 +185,7 @@ export default function DashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{stats.primaryStatCount}</div>
               <p className="text-xs text-muted-foreground">
-                {isAdmin ? "Total de casos registrados en el sistema" : "Casos actualmente bajo su responsabilidad"}
+                {isAdmin || isSecretary ? "Casos registrados en su organización" : "Casos actualmente bajo su responsabilidad"}
               </p>
             </CardContent>
           </Card>
@@ -181,22 +199,22 @@ export default function DashboardPage() {
                 <CardContent>
                     <div className="text-2xl font-bold">{stats.upcomingRemindersCount}</div>
                     <p className="text-xs text-muted-foreground">
-                        {isAdmin ? "Recordatorios próximos para todos los casos" : "Sus recordatorios para los próximos días"}
+                        {isAdmin || isSecretary ? "Recordatorios próximos para su organización" : "Sus recordatorios para los próximos días"}
                     </p>
                 </CardContent>
             </Card>
         </Link>
-        {isAdmin && stats.totalLawyersCount !== undefined && (
+        {isAdmin && stats.totalTeamMembersCount !== undefined && (
           <Link href="/users" className="block hover:shadow-lg transition-shadow rounded-lg">
             <Card className="shadow-md h-full cursor-pointer hover:border-primary">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Abogados</CardTitle>
+                <CardTitle className="text-sm font-medium">Miembros del Equipo</CardTitle>
                 <UsersIcon className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.totalLawyersCount}</div>
+                <div className="text-2xl font-bold">{stats.totalTeamMembersCount}</div>
                 <p className="text-xs text-muted-foreground">
-                  Abogados registrados en el sistema
+                  Abogados y Secretarias en su organización
                 </p>
               </CardContent>
             </Card>
@@ -204,8 +222,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Navigation Cards - Conditional Rendering based on Role */}
-      {(isAdmin || isLawyer) && (
+      {(isAdmin || isLawyer || isSecretary) && (
         <>
           <h2 className="text-xl font-semibold mb-3 mt-8 text-foreground">Acciones y Navegación</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
@@ -214,36 +231,42 @@ export default function DashboardPage() {
                 icon={FolderPlus}
                 title="Registrar Nuevo Caso"
                 description="Crear una nueva ficha de caso legal."
-                lawyerAndAdmin={true} // Visible for lawyers and admins
+                allowedRoles={[UserRole.ADMIN, UserRole.LAWYER, UserRole.SECRETARY]}
             />
-            {isAdmin && ( // Only admins see these
-              <>
-                <NavCard
-                    href="/users"
-                    icon={UsersIcon}
-                    title="Gestionar Usuarios"
-                    description="Administrar cuentas de abogados y administradores."
-                    adminOnly={true}
-                />
+            <NavCard
+                href="/users"
+                icon={UsersIcon}
+                title="Gestionar Usuarios"
+                description="Administrar cuentas de abogados, secretarias y administradores."
+                allowedRoles={[UserRole.ADMIN]}
+            />
+             <NavCard
+                href="/settings"
+                icon={Settings}
+                title="Configuración"
+                description="Personalizar preferencias de la aplicación y consorcio."
+                allowedRoles={[UserRole.ADMIN]} 
+            />
+            {/* Add other nav cards as needed, e.g., for a dedicated consortium settings page for admins */}
+            {/* For example, a direct link to organization settings if it's separate from general app settings */}
+            {isAdmin && (
                  <NavCard
-                    href="/settings"
-                    icon={Settings}
-                    title="Configuración"
-                    description="Personalizar preferencias de la aplicación."
-                    adminOnly={true} 
+                    href="/subscribe" // Example: Link to manage subscription or org details
+                    icon={Building}
+                    title="Mi Organización"
+                    description="Ver detalles de su plan y organización."
+                    allowedRoles={[UserRole.ADMIN]}
                 />
-              </>
             )}
           </div>
         </>
       )}
       
-      {/* Chart for Cases by Subject - Admin Only */}
-      {isAdmin && stats.chartData.length > 0 && (
+      {(isAdmin || isSecretary) && stats.chartData.length > 0 && (
         <Card className="shadow-md mb-6 mt-8">
           <CardHeader>
-            <CardTitle>Casos por Materia</CardTitle>
-            <CardDescription>Distribución de los casos visibles según su materia.</CardDescription>
+            <CardTitle>Casos por Materia (Organización)</CardTitle>
+            <CardDescription>Distribución de los casos de su organización según su materia.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
             <ChartContainer config={chartConfig} className="h-[300px] w-full">
@@ -261,7 +284,6 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Filters, Search, and Sort Section */}
       <div className="mb-6 p-4 border rounded-lg bg-card shadow mt-8" id="case-list-section">
         <h3 className="text-lg font-semibold mb-4">Filtrar y Ordenar Casos</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
@@ -318,9 +340,10 @@ export default function DashboardPage() {
         </div>
       </div>
       
-      <h2 className="text-xl font-semibold mb-4 mt-8 text-foreground">{isAdmin ? "Listado General de Casos" : "Mis Casos Asignados"}</h2>
+      <h2 className="text-xl font-semibold mb-4 mt-8 text-foreground">
+        {isAdmin ? "Listado de Casos (Organización)" : (isSecretary ? "Listado de Casos (Organización)" : "Mis Casos Asignados")}
+      </h2>
       <CaseList cases={filteredCases} setCases={setCases} />
     </div>
   );
 }
-

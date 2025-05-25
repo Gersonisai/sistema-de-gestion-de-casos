@@ -22,11 +22,12 @@ interface AuthContextType {
     email: string, 
     pass: string, 
     role?: UserRole, 
-    organizationId?: string // Added to associate user with an org
+    organizationId?: string
   ) => Promise<{ success: boolean; error?: any; newUserId?: string }>;
   logout: () => void;
   isAdmin: boolean;
   isLawyer: boolean;
+  isSecretary: boolean; // New property
   registerOrganizationAdmin: (
     organizationName: string,
     adminName: string,
@@ -52,33 +53,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         let appUserProfile = mockUsers.find(u => u.id === fbUser.uid);
 
         if (!appUserProfile) {
-          // If not found by UID, try by email (e.g. first login for a pre-defined mock user)
           appUserProfile = mockUsers.find(u => u.email === fbUser.email);
           if (appUserProfile) {
-            appUserProfile.id = fbUser.uid; // Update mock user's ID to Firebase UID
+            appUserProfile.id = fbUser.uid; 
           }
         }
         
         if (appUserProfile) {
           appUserProfile.name = fbUser.displayName || appUserProfile.name;
           appUserProfile.email = fbUser.email!;
+          // Ensure organizationId is correctly assigned if user is part of an org
+          if (!appUserProfile.organizationId && fbUser.uid === "Uh8GnPZnGkNVpEqXwsPJJtTc8R63") { // Hardcoded System Admin
+             appUserProfile.organizationId = "org_default_admin";
+          }
           setCurrentUser(appUserProfile);
         } else {
-          // User exists in Firebase Auth but not in mockData (e.g., registered via invitation to a new org)
-          // This case should ideally be handled by the register function adding to mockUsers.
-          // If they still end up here, it's a fallback.
-           console.warn(`User ${fbUser.email} authenticated via Firebase but not found in mockData. This shouldn't happen if registration flow is correct.`);
-           // For safety, assign a default profile, but this indicates a potential gap if `organizationId` is missing.
+           console.warn(`User ${fbUser.email} authenticated via Firebase but not found in mockData. Creating a default profile.`);
            const fallbackProfile: AppUser = {
             id: fbUser.uid,
             email: fbUser.email!,
-            name: fbUser.displayName || "Usuario Firebase",
-            role: UserRole.LAWYER, // Default role for unexpected users
-            // organizationId will be undefined here, which might cause issues.
-            // The registration flow (invited or org admin) should ensure organizationId is set.
+            name: fbUser.displayName || "Usuario YASI K'ARI",
+            role: UserRole.LAWYER, // Default new registrations to Lawyer if not specified or matched
+            // organizationId might be undefined here, should be set during specific registration flows.
           };
           setCurrentUser(fallbackProfile);
-          if (!mockUsers.some(mu => mu.id === fbUser.uid)) { // Add if truly new and missed by register flows
+          if (!mockUsers.some(mu => mu.id === fbUser.uid)) {
              mockUsers.push(fallbackProfile);
           }
         }
@@ -95,7 +94,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-      // onAuthStateChanged will handle setting the user
       setIsLoading(false);
       return true;
     } catch (error) {
@@ -109,8 +107,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     name: string, 
     email: string, 
     pass: string, 
-    role: UserRole = UserRole.LAWYER, // Default to LAWYER
-    organizationId?: string // Optional: for invited users or direct admin creation
+    role: UserRole = UserRole.LAWYER, 
+    organizationId?: string 
   ): Promise<{ success: boolean; error?: any; newUserId?: string }> => {
     setIsLoading(true);
     try {
@@ -118,14 +116,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const fbUser = userCredential.user;
       await updateProfile(fbUser, { displayName: name });
       
-      // Create or update user profile in mockUsers
       let appUserProfile = mockUsers.find(u => u.id === fbUser.uid || u.email === email);
-      if (appUserProfile) { // Update existing mock user (e.g. if email matched a placeholder)
+      if (appUserProfile) { 
         appUserProfile.id = fbUser.uid;
         appUserProfile.name = name;
         appUserProfile.role = role;
-        appUserProfile.organizationId = organizationId || appUserProfile.organizationId; // Preserve orgId if already set
-      } else { // Add new user to mockUsers
+        appUserProfile.organizationId = organizationId || appUserProfile.organizationId;
+      } else { 
         appUserProfile = { 
           id: fbUser.uid, 
           name, 
@@ -136,17 +133,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         mockUsers.push(appUserProfile);
       }
       
-      // If this user is an admin and their organization is "org_default_admin" (our system admin mock)
-      // ensure it's properly set, mostly for the initial admin@lexcase.com setup.
-      if (email === 'admin@lexcase.com' && role === UserRole.ADMIN) {
-        const sysAdminOrg = mockOrganizations.find(o => o.id === 'org_default_admin');
-        if (sysAdminOrg) {
-            appUserProfile.organizationId = sysAdminOrg.id;
-        }
-      }
-
-      setCurrentUser(appUserProfile); // Set current user immediately after registration for better UX
-      setFirebaseUser(fbUser); // Also set firebaseUser
+      setCurrentUser(appUserProfile); 
+      setFirebaseUser(fbUser);
 
       setIsLoading(false);
       return { success: true, newUserId: fbUser.uid };
@@ -176,6 +164,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         name: organizationName,
         ownerId: fbUser.uid,
         plan: plan,
+        themePalette: "default",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -189,22 +178,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         organizationId: newOrgId,
       };
       
-      // Ensure this new admin is also in mockUsers
-      // Remove if exists by email (e.g. if admin@lexcase.com was a placeholder) then add fresh
       const existingUserIndex = mockUsers.findIndex(u => u.email === adminEmail);
       if (existingUserIndex > -1) mockUsers.splice(existingUserIndex, 1);
       mockUsers.push(adminProfile);
       
-      setCurrentUser(adminProfile); // Set current user to the new admin
-      setFirebaseUser(fbUser);    // Also set firebaseUser
-
-      console.log("New organization (simulated):", newOrganization);
-      console.log("New admin profile (simulated):", adminProfile);
+      setCurrentUser(adminProfile); 
+      setFirebaseUser(fbUser);
 
       setIsLoading(false);
       return { success: true, newUserId: fbUser.uid, newOrgId: newOrgId };
-    } catch (error: any)
-{
+    } catch (error: any) {
       console.error("Firebase organization admin registration error:", error);
       setIsLoading(false);
       return { success: false, error: error };
@@ -216,8 +199,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       await firebaseSignOut(auth);
-      // setCurrentUser and setFirebaseUser will be set to null by onAuthStateChanged
-      router.push("/"); // Redirect to landing page on logout
+      router.push("/"); 
     } catch (error) {
       console.error("Firebase logout error:", error);
     } finally {
@@ -228,6 +210,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isAuthenticated = !!currentUser && !!firebaseUser;
   const isAdmin = currentUser?.role === UserRole.ADMIN;
   const isLawyer = currentUser?.role === UserRole.LAWYER;
+  const isSecretary = currentUser?.role === UserRole.SECRETARY;
 
   return (
     <AuthContext.Provider
@@ -241,6 +224,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         logout,
         isAdmin,
         isLawyer,
+        isSecretary, // New property
         registerOrganizationAdmin,
       }}
     >

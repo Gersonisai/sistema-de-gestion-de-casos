@@ -8,11 +8,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-// import type { User } from "@/lib/types"; // App User type
-// import { mockUsers } from "@/data/mockData"; // mockUsers is updated within UserForm/AuthContext for now
+import { UserRole } from "@/lib/types"; // Import UserRole
 
 export default function NewUserPage() {
-  const { isAdmin, isLoading: authIsLoading, register } = useAuth(); // Use register from AuthContext
+  const { isAdmin, isLoading: authIsLoading, register, currentUser } = useAuth();
   const router = useRouter();
   const [isClientLoading, setIsClientLoading] = useState(true);
 
@@ -26,13 +25,13 @@ export default function NewUserPage() {
     }
   }, [isAdmin, authIsLoading, router]);
 
-  // Admin creating a new user
   const handleSaveUser = async (data: CreateUserByAdminFormValues) => {
-    // The register function from AuthContext now handles Firebase user creation
-    // and the simulation of adding to mockUsers.
-    // The role is passed from the form.
-    // The register function now returns { success, error, newUserId }
-    return register(data.name, data.email, data.password, data.role);
+    if (!currentUser || !currentUser.organizationId) {
+        // This should ideally not happen if an admin is logged in
+        return { success: false, error: { message: "Administrador no asociado a una organización." } };
+    }
+    // Admin creating a new user for their own organization
+    return register(data.name, data.email, data.password, data.role, currentUser.organizationId);
   };
   
   if (authIsLoading || isClientLoading) {
@@ -45,7 +44,7 @@ export default function NewUserPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <PageHeader title="Crear Nuevo Usuario (Admin)" />
+      <PageHeader title="Crear Nuevo Usuario para su Organización" />
       <UserForm onSave={handleSaveUser as any} isEditMode={false} />
     </div>
   );

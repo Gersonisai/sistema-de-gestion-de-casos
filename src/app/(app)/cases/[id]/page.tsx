@@ -6,7 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { CaseForm } from "@/components/cases/CaseForm";
 import type { CaseFormValues } from "@/components/cases/CaseForm";
 import { PageHeader } from "@/components/shared/PageHeader";
-import type { Case } from "@/lib/types";
+import type { Case, User } from "@/lib/types";
 import { UserRole } from "@/lib/types";
 import { mockCases, mockUsers } from "@/data/mockData"; 
 import { useAuth } from "@/hooks/useAuth";
@@ -22,9 +22,9 @@ function CaseDetailPageContent() {
   const routeParams = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { currentUser, isAdmin, isLoading: authIsLoading } = useAuth();
+  const { currentUser, isAdmin, isLawyer, isSecretary, isLoading: authIsLoading } = useAuth();
   
-  const [currentCase, setCurrentCase] = useState<Case | null | undefined>(undefined); // undefined for loading, null for not found
+  const [currentCase, setCurrentCase] = useState<Case | null | undefined>(undefined);
   const [isEditing, setIsEditing] = useState(searchParams.get('edit') === 'true');
 
   const caseId: string | null = useMemo(() => {
@@ -33,23 +33,29 @@ function CaseDetailPageContent() {
 
   useEffect(() => {
     if (!caseId) {
-      // If params are available but no valid caseId, set to null (not found)
       if (routeParams && !authIsLoading && currentCase === undefined) {
          setCurrentCase(null);
       }
       return;
     }
-    // Simulate fetching case data
-    const foundCase = mockCases.find((c) => c.id === caseId);
+    // Simulate fetching case data and filter by organization
+    let foundCase = mockCases.find((c) => c.id === caseId);
+    if (foundCase && currentUser?.organizationId && foundCase.organizationId !== currentUser.organizationId) {
+      // If case belongs to a different org, treat as not found for this user (unless system admin)
+      // This logic might need refinement for a true "system admin" who sees all orgs.
+      // For now, assume org admins/lawyers/secretaries only see their org's cases.
+      if (currentUser.role !== UserRole.ADMIN || currentUser.organizationId !== "org_default_admin" ) { // Example: system admin
+        foundCase = undefined; 
+      }
+    }
     setCurrentCase(foundCase || null);
-  }, [caseId, routeParams, authIsLoading, currentCase]);
+  }, [caseId, routeParams, authIsLoading, currentCase, currentUser]);
 
   useEffect(() => {
     setIsEditing(searchParams.get('edit') === 'true');
   }, [searchParams]);
 
-  const handleSaveCase = async (data: CaseFormValues & { reminders: any[], documentLinks: any[] }, caseToUpdate?: Case) => {
-    // In a real app, this would be an API call.
+  const handleSaveCase = async (data: CaseFormValues & { reminders: any[], documentLinks: any[], organizationId?: string }, caseToUpdate?: Case) => {
     console.log("Updated case data:", data, "for case:", caseToUpdate?.id);
     if (caseToUpdate) {
         const caseIndex = mockCases.findIndex(c => c.id === caseToUpdate.id);
@@ -61,19 +67,24 @@ function CaseDetailPageContent() {
             };
         }
     }
-    // router.push(`/cases/${caseId}`); // Navigation handled by CaseForm on success
-    setIsEditing(false); // Exit edit mode after save
+    setIsEditing(false);
   };
 
   const handleDeleteCase = async (id: string) => {
+    if (!isAdmin) return; // Only admin can delete from here
     const caseIndex = mockCases.findIndex(c => c.id === id);
     if (caseIndex !== -1) {
         mockCases.splice(caseIndex, 1);
     }
-    // router.push('/dashboard'); // Navigation handled by CaseForm on success
+    router.push('/dashboard');
   };
 
-  const canEditThisCase = isAdmin || (currentUser?.role === UserRole.LAWYER && currentCase?.assignedLawyerId === currentUser?.id);
+  const canEditThisCase = isAdmin || isSecretary || (isLawyer && currentCase?.assignedLawyerId === currentUser?.id);
+  const canDeleteThisCase = isAdmin;
+
+  const lawyersInOrg = currentUser?.organizationId 
+    ? mockUsers.filter(u => u.organizationId === currentUser.organizationId && u.role === UserRole.LAWYER)
+    : [];
 
   if (authIsLoading || currentCase === undefined) {
     return (
@@ -89,7 +100,7 @@ function CaseDetailPageContent() {
         <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
         <h2 className="text-2xl font-semibold">Caso No Encontrado</h2>
         <p className="text-muted-foreground mt-2">
-          El caso que está buscando no existe, no tiene un ID válido en la URL, o ha sido eliminado.
+          El caso que está buscando no existe, no tiene un ID válido en la URL, ha sido eliminado, o no pertenece a su organización.
         </p>
         <Button asChild className="mt-6">
           <Link href="/dashboard">Volver al Dashboard</Link>
@@ -101,12 +112,16 @@ function CaseDetailPageContent() {
   if (isEditing && canEditThisCase) {
     return (
       <div className="container mx-auto py-8">
-        <CaseForm initialData={currentCase} onSave={handleSaveCase as any} onDelete={isAdmin ? handleDeleteCase : undefined} />
+        <CaseForm 
+            initialData={currentCase} 
+            onSave={handleSaveCase as any} 
+            onDelete={canDeleteThisCase ? handleDeleteCase : undefined} 
+            lawyersForAssignment={lawyersInOrg}
+        />
       </div>
     );
   }
   
-  // View Mode
   const assignedLawyer = mockUsers.find(u => u.id === currentCase.assignedLawyerId);
   return (
     <div className="container mx-auto py-8">
@@ -173,7 +188,6 @@ function CaseDetailPageContent() {
 
 export default function CaseDetailPage() {
   return (
-    // Suspense boundary for useSearchParams
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-[calc(100vh-150px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

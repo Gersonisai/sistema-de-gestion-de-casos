@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -13,9 +13,10 @@ import { Settings as SettingsIcon, Palette, Bell, AlertTriangle, Building, Palet
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useAuth } from "@/hooks/useAuth"; // For checking admin role
+import { useAuth } from "@/hooks/useAuth";
+import { THEME_PALETTES, type ThemePaletteId } from "@/lib/types";
+import { mockOrganizations } from "@/data/mockData";
 
-// Helper function to convert VAPID key
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
@@ -31,13 +32,16 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
+type AppTheme = "light" | "dark" | "system";
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const { isAdmin } = useAuth(); // Check if user is admin
+  const { isAdmin, currentUser } = useAuth(); 
 
-  // App Settings
-  const [theme, setTheme] = useState("system");
+  // App Display Theme (Light/Dark/System)
+  const [appTheme, setAppTheme] = useState<AppTheme>("system");
+
+  // Notifications
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState("default");
   const [isCheckingPermission, setIsCheckingPermission] = useState(true);
@@ -46,16 +50,88 @@ export default function SettingsPage() {
   // Consortium Settings (simulated)
   const [consortiumName, setConsortiumName] = useState("Mi Bufete YASI K'ARI");
   const [consortiumLogo, setConsortiumLogo] = useState<File | null>(null);
-  const [consortiumColor, setConsortiumColor] = useState("#3F51B5");
+  const [consortiumColorPalette, setConsortiumColorPalette] = useState<ThemePaletteId>(THEME_PALETTES[0].id);
 
-  // VAPID Key Check
   const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const isVapidKeyConfigured = vapidPublicKey && vapidPublicKey !== 'YOUR_VAPID_PUBLIC_KEY_PLACEHOLDER';
+
+  // Initialize app theme from localStorage or system preference
+  useEffect(() => {
+    const storedTheme = localStorage.getItem("app-theme") as AppTheme | null;
+    if (storedTheme) {
+      setAppTheme(storedTheme);
+      applyAppTheme(storedTheme);
+    } else {
+      applyAppTheme("system"); // Default to system if no preference stored
+    }
+  }, []);
+
+  // Initialize consortium settings if admin
+  useEffect(() => {
+    if (isAdmin && currentUser?.organizationId) {
+      const org = mockOrganizations.find(o => o.id === currentUser.organizationId);
+      if (org) {
+        setConsortiumName(org.name);
+        setConsortiumColorPalette(org.themePalette || THEME_PALETTES[0].id);
+        // Apply initial consortium theme (this will be done by ClientEffects ideally)
+        applyConsortiumPalette(org.themePalette || THEME_PALETTES[0].id);
+      }
+    }
+  }, [isAdmin, currentUser]);
+
+
+  const applyAppTheme = useCallback((theme: AppTheme) => {
+    const root = window.document.documentElement;
+    root.classList.remove("light", "dark");
+
+    if (theme === "system") {
+      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      root.classList.add(systemTheme);
+    } else {
+      root.classList.add(theme);
+    }
+  }, []);
+
+  const handleAppThemeChange = (newTheme: AppTheme) => {
+    setAppTheme(newTheme);
+    localStorage.setItem("app-theme", newTheme);
+    applyAppTheme(newTheme);
+    toast({
+      title: "Preferencia Guardada",
+      description: `Tema de la aplicación cambiado a: ${newTheme}.`,
+    });
+  };
+  
+  const applyConsortiumPalette = (paletteId: ThemePaletteId) => {
+    const root = document.documentElement;
+    // Remove any existing palette classes
+    THEME_PALETTES.forEach(p => root.classList.remove(`theme-${p.id}`));
+    if (paletteId !== "default") { // 'default' palette uses the base CSS variables
+      root.classList.add(`theme-${paletteId}`);
+    }
+  };
+
+  const handleConsortiumPaletteChange = (paletteId: ThemePaletteId) => {
+    setConsortiumColorPalette(paletteId);
+    if (isAdmin && currentUser?.organizationId) {
+      const orgIndex = mockOrganizations.findIndex(o => o.id === currentUser.organizationId);
+      if (orgIndex !== -1) {
+        mockOrganizations[orgIndex].themePalette = paletteId;
+        // Persist to localStorage for demo purposes, ClientEffects will read from here too
+        localStorage.setItem(`org-theme-${currentUser.organizationId}`, paletteId); 
+      }
+    }
+    applyConsortiumPalette(paletteId); // Apply immediately for visual feedback
+    toast({
+      title: "Paleta del Consorcio Actualizada (Simulación)",
+      description: `Paleta cambiada a: ${THEME_PALETTES.find(p=>p.id === paletteId)?.name}.`,
+    });
+  };
 
 
   useEffect(() => {
     if (!isVapidKeyConfigured) {
-      console.warn("Clave VAPID pública no configurada. Las suscripciones Push podrían fallar. Obtenga una de Firebase (Cloud Messaging) y configúrela como NEXT_PUBLIC_VAPID_PUBLIC_KEY.");
+      console.warn("Clave VAPID pública no configurada. Las suscripciones Push podrían fallar.");
     }
 
     if (typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator) {
@@ -86,17 +162,9 @@ export default function SettingsPage() {
     }
   }, [isVapidKeyConfigured]);
 
-  const handleThemeChange = (newTheme: string) => {
-    setTheme(newTheme);
-    // Lógica para aplicar el tema (ej. añadir/quitar clase 'dark' al body) no implementada aún
-    toast({
-      title: "Preferencia Guardada",
-      description: `Tema cambiado a: ${newTheme}. La aplicación del tema real requiere implementación adicional.`,
-    });
-  };
 
   const subscribeToPushNotifications = async () => {
-    if (!isVapidKeyConfigured) {
+    if (!isVapidKeyConfigured || !vapidPublicKey) {
         toast({ variant: "destructive", title: "Configuración Requerida", description: "La clave VAPID pública no está configurada. No se puede suscribir." });
         return null;
     }
@@ -114,7 +182,7 @@ export default function SettingsPage() {
         return subscription;
       }
       
-      const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey!);
+      const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: applicationServerKey,
@@ -194,10 +262,20 @@ export default function SettingsPage() {
   };
 
   const handleConsortiumSettingsSave = () => {
-    // En una app real, esto enviaría los datos al backend para guardarlos.
+    if (isAdmin && currentUser?.organizationId) {
+      const orgIndex = mockOrganizations.findIndex(o => o.id === currentUser.organizationId);
+      if (orgIndex !== -1) {
+        mockOrganizations[orgIndex].name = consortiumName;
+        mockOrganizations[orgIndex].themePalette = consortiumColorPalette; 
+        // Persist to localStorage for demo purposes, ClientEffects will read from here too
+        localStorage.setItem(`org-theme-${currentUser.organizationId}`, consortiumColorPalette);
+        localStorage.setItem(`org-name-${currentUser.organizationId}`, consortiumName);
+      }
+    }
+    applyConsortiumPalette(consortiumColorPalette);
     toast({
       title: "Configuración de Consorcio Guardada (Simulación)",
-      description: `Nombre: ${consortiumName}, Color: ${consortiumColor}, Logo: ${consortiumLogo?.name || 'Ninguno'}`,
+      description: `Nombre: ${consortiumName}, Paleta: ${THEME_PALETTES.find(p => p.id === consortiumColorPalette)?.name}`,
     });
   };
 
@@ -205,7 +283,6 @@ export default function SettingsPage() {
     <div className="container mx-auto py-8">
       <PageHeader title="Configuración" />
       <div className="grid gap-8 lg:grid-cols-3">
-        {/* Columna de Ajustes Generales */}
         <div className="lg:col-span-2 space-y-8">
           <Card className="shadow-lg">
             <CardHeader>
@@ -218,16 +295,15 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
-              {/* Preferencias de Apariencia */}
               <div className="space-y-4">
                 <div className="flex items-center">
                   <Palette className="mr-3 h-5 w-5 text-muted-foreground" />
-                  <h3 className="text-lg font-medium">Apariencia</h3>
+                  <h3 className="text-lg font-medium">Apariencia (Tema global)</h3>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-3 items-center">
                   <Label htmlFor="theme-select" className="sm:col-span-1">Tema</Label>
                   <div className="sm:col-span-2">
-                    <Select value={theme} onValueChange={handleThemeChange}>
+                    <Select value={appTheme} onValueChange={(value) => handleAppThemeChange(value as AppTheme)}>
                       <SelectTrigger id="theme-select" className="w-full">
                         <SelectValue placeholder="Seleccionar tema" />
                       </SelectTrigger>
@@ -238,7 +314,7 @@ export default function SettingsPage() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground mt-1">
-                        Seleccione su tema visual. La aplicación real del tema requiere implementación adicional.
+                        Seleccione su tema visual preferido para la aplicación.
                     </p>
                   </div>
                 </div>
@@ -246,7 +322,6 @@ export default function SettingsPage() {
 
               <Separator />
 
-              {/* Preferencias de Notificación Push */}
               <div className="space-y-4">
                 <div className="flex items-center">
                   <Bell className="mr-3 h-5 w-5 text-muted-foreground" />
@@ -257,8 +332,8 @@ export default function SettingsPage() {
                       <AlertTriangle className="h-4 w-4" />
                       <AlertTitle>Configuración Requerida para Notificaciones</AlertTitle>
                       <AlertDescription>
-                        La clave VAPID pública no está configurada en las variables de entorno (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`).
-                        Las notificaciones Push no pueden habilitarse. Obtenga una de Firebase (Cloud Messaging {'>'} Configuración Web {'>'} Par de claves).
+                        La clave VAPID pública (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`) no está configurada.
+                        Las notificaciones Push no pueden habilitarse. Obtenga una de Firebase (Cloud Messaging) y configúrela en su archivo `.env.local`.
                       </AlertDescription>
                     </Alert>
                 )}
@@ -298,7 +373,7 @@ export default function SettingsPage() {
                     <div className="flex items-start p-3 rounded-md border border-destructive/50 bg-destructive/10 text-destructive">
                         <AlertTriangle className="h-5 w-5 mr-2 mt-0.5" />
                         <p className="text-xs">
-                        Este navegador no es compatible con Notificaciones Push. Considera usar Chrome, Firefox, Edge o Safari (macOS/iOS).
+                        Este navegador no es compatible con Notificaciones Push.
                         </p>
                     </div>
                 )}
@@ -307,7 +382,6 @@ export default function SettingsPage() {
           </Card>
         </div>
 
-        {/* Columna de Ajustes de Consorcio (Solo Admin) */}
         {isAdmin && (
           <div className="lg:col-span-1 space-y-8">
             <Card className="shadow-lg">
@@ -317,11 +391,10 @@ export default function SettingsPage() {
                   Configuración del Consorcio
                 </CardTitle>
                 <CardDescription>
-                  Personalice la identidad y ajustes específicos de su consorcio. (Simulación)
+                  Personalice la identidad y ajustes específicos de su consorcio.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Marca del Consorcio */}
                 <div className="space-y-4">
                   <div className="flex items-center">
                      <PaletteIcon className="mr-3 h-5 w-5 text-muted-foreground" />
@@ -332,41 +405,48 @@ export default function SettingsPage() {
                     <Input id="consortiumName" value={consortiumName} onChange={(e) => setConsortiumName(e.target.value)} placeholder="Ej: Bufete Legal XYZ" />
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="consortiumPalette">Paleta de Colores del Consorcio</Label>
+                    <Select value={consortiumColorPalette} onValueChange={(value) => handleConsortiumPaletteChange(value as ThemePaletteId)}>
+                        <SelectTrigger id="consortium-palette-select">
+                            <SelectValue placeholder="Seleccionar paleta" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {THEME_PALETTES.map(palette => (
+                                <SelectItem key={palette.id} value={palette.id}>{palette.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                     <p className="text-xs text-muted-foreground">Afecta la apariencia principal para todos los usuarios de su consorcio.</p>
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="consortiumLogo">Logo del Consorcio</Label>
                     <Input id="consortiumLogo" type="file" onChange={(e) => setConsortiumLogo(e.target.files ? e.target.files[0] : null)} />
                     {consortiumLogo && <p className="text-xs text-muted-foreground">Archivo seleccionado: {consortiumLogo.name}</p>}
                     <p className="text-xs text-muted-foreground">La subida y aplicación real del logo es una funcionalidad futura.</p>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="consortiumColor">Color Primario del Consorcio</Label>
-                    <Input id="consortiumColor" type="text" value={consortiumColor} onChange={(e) => setConsortiumColor(e.target.value)} placeholder="#RRGGBB" />
-                     <p className="text-xs text-muted-foreground">Ingrese un color hexadecimal. La aplicación real del color es una funcionalidad futura.</p>
-                  </div>
                 </div>
                 
                 <Separator />
 
-                {/* Roles Avanzados */}
                  <div className="space-y-2">
                     <div className="flex items-center">
                         <KeyRound className="mr-3 h-5 w-5 text-muted-foreground" />
                         <h3 className="text-lg font-medium">Roles Avanzados</h3>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                        La creación de permisos granulares (ej: "Socio", "Asistente", "Invitado") y la restricción de acceso a datos sensibles por rol son funcionalidades futuras que requieren desarrollo de backend.
+                        Funcionalidad futura: Definir permisos más granulares.
                     </p>
                 </div>
 
                 <Separator />
 
-                {/* Integraciones */}
                 <div className="space-y-2">
                     <div className="flex items-center">
                         <LinkIcon className="mr-3 h-5 w-5 text-muted-foreground" />
                         <h3 className="text-lg font-medium">Integraciones</h3>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                        La conexión con herramientas externas (Microsoft 365, Google Drive, Slack) y una API abierta para desarrolladores del consorcio son funcionalidades futuras.
+                        Funcionalidad futura: Conexión con herramientas externas.
                     </p>
                 </div>
 

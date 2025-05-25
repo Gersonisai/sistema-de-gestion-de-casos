@@ -24,13 +24,13 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { User } from "@/lib/types"; // App User type
-import { UserRole } from "@/lib/types";
+import { UserRole, USER_ROLE_NAMES } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth"; // Import useAuth for register function
+// import { useAuth } from "@/hooks/useAuth"; // Not needed here directly for form logic
 import { Save, Loader2, ArrowLeft } from "lucide-react";
 import { useState } from "react";
-import { mockUsers } from "@/data/mockData"; // Still used to update local list for display
+import { mockUsers } from "@/data/mockData"; 
 
 // Schema for creating users (by admin)
 const createUserSchemaByAdmin = z.object({
@@ -49,7 +49,7 @@ const createUserSchemaByAdmin = z.object({
 // Schema for editing users
 const editUserSchema = z.object({
   name: z.string().min(1, "El nombre es requerido."),
-  email: z.string().email("Email inválido."), // Email is readonly in form, but part of values
+  email: z.string().email("Email inválido."), 
   role: z.nativeEnum(UserRole, {
     errorMap: () => ({ message: "El rol es requerido." }),
   }),
@@ -60,7 +60,7 @@ export type EditUserFormValues = z.infer<typeof editUserSchema>;
 
 
 interface UserFormProps {
-  initialData?: User; // App User type
+  initialData?: User; 
   onSave: (data: CreateUserByAdminFormValues | EditUserFormValues, userId?: string) => Promise<{success: boolean, error?: any, newUserId?: string}>;
   isEditMode: boolean;
 }
@@ -81,10 +81,10 @@ export function UserForm({ initialData, onSave, isEditMode }: UserFormProps) {
           email: initialData.email,
           role: initialData.role,
         }
-      : { // For admin creating user
+      : { 
           name: "",
           email: "",
-          role: UserRole.LAWYER, // Default role when admin creates
+          role: UserRole.LAWYER, 
           password: "",
           confirmPassword: "",
         },
@@ -94,8 +94,6 @@ export function UserForm({ initialData, onSave, isEditMode }: UserFormProps) {
     setIsSaving(true);
     setErrorMessage(null);
     try {
-      // The onSave prop now comes from the page (new/edit user page)
-      // and it will contain the Firebase logic.
       const result = await onSave(values, initialData?.id);
 
       if (result.success) {
@@ -103,16 +101,19 @@ export function UserForm({ initialData, onSave, isEditMode }: UserFormProps) {
           title: isEditMode ? "Usuario Actualizado" : "Usuario Creado",
           description: `El usuario "${values.name}" ha sido ${isEditMode ? 'actualizado' : 'creado'} exitosamente.`,
         });
-        // Update mockUsers for immediate UI reflection if needed,
-        // though ideally this list is also populated from Firestore in UsersPage
+        
+        // Update mockUsers for immediate UI reflection
         if (isEditMode && initialData) {
             const index = mockUsers.findIndex(u => u.id === initialData.id);
             if (index !== -1) {
-                mockUsers[index] = { ...mockUsers[index], ...values as User };
+                mockUsers[index] = { 
+                  ...mockUsers[index], 
+                  name: values.name, 
+                  role: values.role, 
+                  // email is not changed in edit mode
+                };
             }
         } else if (!isEditMode && result.newUserId) {
-            // For admin creation, we add to mockUsers for now.
-            // In a real app with Firestore, UsersPage would refetch or get updates.
             const userExists = mockUsers.some(u => u.id === result.newUserId);
             if (!userExists) {
                 mockUsers.push({
@@ -120,6 +121,7 @@ export function UserForm({ initialData, onSave, isEditMode }: UserFormProps) {
                     name: values.name,
                     email: values.email,
                     role: values.role,
+                    organizationId: initialData?.organizationId, // Or determine based on admin creating it
                 });
             }
         }
@@ -201,8 +203,9 @@ export function UserForm({ initialData, onSave, isEditMode }: UserFormProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value={UserRole.LAWYER}>Abogado</SelectItem>
-                      <SelectItem value={UserRole.ADMIN}>Administrador</SelectItem>
+                      <SelectItem value={UserRole.LAWYER}>{USER_ROLE_NAMES[UserRole.LAWYER]}</SelectItem>
+                      <SelectItem value={UserRole.ADMIN}>{USER_ROLE_NAMES[UserRole.ADMIN]}</SelectItem>
+                      <SelectItem value={UserRole.SECRETARY}>{USER_ROLE_NAMES[UserRole.SECRETARY]}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
