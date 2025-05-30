@@ -1,6 +1,6 @@
 
 import type { User, Case, Reminder, FileAttachment, Organization } from "@/lib/types";
-import { UserRole, CaseSubject, PROCESS_STAGES, THEME_PALETTES } from "@/lib/types";
+import { UserRole, CaseSubject, PROCESS_STAGES, THEME_PALETTES, CASE_SUBJECTS_OPTIONS, PLAN_LIMITS } from "@/lib/types"; // Added CASE_SUBJECTS_OPTIONS and PLAN_LIMITS
 
 // Simulate a list of organizations/consorcios
 export const mockOrganizations: Organization[] = [
@@ -12,6 +12,8 @@ export const mockOrganizations: Organization[] = [
     themePalette: THEME_PALETTES[0].id,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    currentStorageUsedBytes: 0,
+    maxStorageGB: PLAN_LIMITS.system_admin.maxStorageGB, // Initialize from PLAN_LIMITS
   },
   {
     id: "org_bufete_test_1",
@@ -21,6 +23,19 @@ export const mockOrganizations: Organization[] = [
     themePalette: THEME_PALETTES[1].id,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    currentStorageUsedBytes: 1024 * 1024 * 5, // Approx 5MB used
+    maxStorageGB: PLAN_LIMITS.premium.maxStorageGB, // Initialize from PLAN_LIMITS
+  },
+  {
+    id: "org_bufete_gerson_machuca",
+    name: "Bufete Gerson Machuca",
+    ownerId: "gerson_machuca_admin_uid", // Placeholder UID for Gerson Machuca
+    plan: "premium", 
+    themePalette: THEME_PALETTES[2].id, 
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    currentStorageUsedBytes: 0,
+    maxStorageGB: PLAN_LIMITS.premium.maxStorageGB, // Initialize from PLAN_LIMITS
   }
 ];
 
@@ -29,7 +44,7 @@ export const mockUsers: User[] = [
   {
     id: "Uh8GnPZnGkNVpEqXwsPJJtTc8R63", // Admin UID from Firebase
     email: "admin@lexcase.com",
-    name: "Admin YASI K'ARI", // Updated name
+    name: "Admin YASI K'ARI",
     role: UserRole.ADMIN,
     organizationId: "org_default_admin",
   },
@@ -41,7 +56,14 @@ export const mockUsers: User[] = [
     organizationId: "org_bufete_test_1",
   },
   {
-    id: "ExyIt8HKmsOoZhkjaIUdC8Rdm733", 
+    id: "gerson_machuca_admin_uid", 
+    email: "machuagerson98@gmail.com",
+    name: "Gerson Machuca",
+    role: UserRole.ADMIN,
+    organizationId: "org_bufete_gerson_machuca",
+  },
+  {
+    id: "ExyIt8HKmsOoZhkjaIUdC8Rdm733",
     email: "abogado1@lexcase.com",
     name: "Lic. Ana Pérez",
     role: UserRole.LAWYER,
@@ -63,36 +85,53 @@ export const mockUsers: User[] = [
   },
 ];
 
-const createReminders = (caseId: string, userId: string): Reminder[] => [
-  {
-    id: `${caseId}-reminder1`,
-    date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), 
-    message: "Preparar alegatos finales",
-    createdBy: userId,
-  },
-];
+const createReminders = (caseId: string, userId: string, daysOffset: number = 7, messageBase: string = "Preparar para"): Reminder[] => {
+  const reminders: Reminder[] = [];
+  const numReminders = Math.floor(Math.random() * 3) + 1; // 1 to 3 reminders
 
-// Updated to create FileAttachment instead of DocumentLink
-const createFileAttachments = (caseId: string, organizationId = "org_bufete_test_1"): FileAttachment[] => [
-  {
-    id: `${caseId}-doc1`,
-    fileName: "Demanda_Inicial.pdf",
-    gcsPath: `tenants/${organizationId}/casos/${caseId}/documentos/Demanda_Inicial.pdf`,
-    contentType: "application/pdf",
-    size: 1024 * 200, // 200KB
-    uploadedAt: new Date().toISOString(),
-  },
-  {
-    id: `${caseId}-doc2`,
-    fileName: "Pruebas_Cliente.zip",
-    gcsPath: `tenants/${organizationId}/casos/${caseId}/documentos/Pruebas_Cliente.zip`,
-    contentType: "application/zip",
-    size: 1024 * 1024 * 2, // 2MB
-    uploadedAt: new Date().toISOString(),
-  },
-];
+  for (let i = 0; i < numReminders; i++) {
+    const reminderDate = new Date();
+    const randomDayOffset = Math.floor(Math.random() * daysOffset * 2) - daysOffset; // +/- daysOffset
+    reminderDate.setDate(reminderDate.getDate() + randomDayOffset + (i*2)); // Stagger reminder dates a bit
+    reminderDate.setHours(Math.floor(Math.random() * 10) + 8, Math.random() > 0.5 ? 30 : 0); // Random time between 08:00 and 17:30
 
-export const mockCases: Case[] = [
+    reminders.push({
+      id: `${caseId}-reminder${i+1}-${Date.now().toString().slice(-5)}`,
+      date: reminderDate.toISOString(),
+      message: `${messageBase} - Actividad ${i+1}`,
+      createdBy: userId,
+    });
+  }
+  return reminders;
+};
+
+const createFileAttachments = (caseId: string, organizationId = "org_bufete_test_1"): FileAttachment[] => {
+  const attachments: FileAttachment[] = [];
+  const numAttachments = Math.floor(Math.random() * 4); // 0 to 3 attachments
+  const fileTypes = [
+    { name: "Documento_Legal", ext: "pdf", type: "application/pdf", size: 1024 * (Math.floor(Math.random() * 300) + 50) },
+    { name: "Evidencia_Fotografica", ext: "jpg", type: "image/jpeg", size: 1024 * 1024 * (Math.floor(Math.random() * 3) + 1) },
+    { name: "Planilla_Calculo", ext: "xlsx", type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", size: 1024 * (Math.floor(Math.random() * 100) + 20) },
+    { name: "Presentacion_Caso", ext: "pptx", type: "application/vnd.openxmlformats-officedocument.presentationml.presentation", size: 1024 * 1024 * (Math.floor(Math.random() * 2) + 1) },
+    { name: "Nota_Texto", ext: "txt", type: "text/plain", size: 1024 * (Math.floor(Math.random() * 10) + 1) },
+  ];
+
+  for (let i = 0; i < numAttachments; i++) {
+    const fileInfo = fileTypes[Math.floor(Math.random() * fileTypes.length)];
+    const fileName = `${fileInfo.name}_${caseId}_${i+1}.${fileInfo.ext}`;
+    attachments.push({
+      id: `${caseId}-doc${i+1}-${Date.now().toString().slice(-5)}`,
+      fileName: fileName,
+      gcsPath: `tenants/${organizationId}/casos/${caseId}/documentos/${fileName}`,
+      contentType: fileInfo.type,
+      size: fileInfo.size,
+      uploadedAt: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString(), // Uploaded in the last 30 days
+    });
+  }
+  return attachments;
+};
+
+const baseCases: Case[] = [
   {
     id: "case001",
     nurej: "202300101",
@@ -101,13 +140,13 @@ export const mockCases: Case[] = [
     processStage: PROCESS_STAGES[1],
     nextActivity: "Audiencia de conciliación",
     subject: CaseSubject.CIVIL,
-    assignedLawyerId: "ExyIt8HKmsOoZhkjaIUdC8Rdm733", 
+    assignedLawyerId: "ExyIt8HKmsOoZhkjaIUdC8Rdm733",
     lastActivityDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    reminders: createReminders("case001", "ExyIt8HKmsOoZhkjaIUdC8Rdm733"),
-    fileAttachments: createFileAttachments("case001", "org_bufete_test_1"), // Updated
+    reminders: createReminders("case001", "ExyIt8HKmsOoZhkjaIUdC8Rdm733", 10, "Revisar contrato"),
+    fileAttachments: createFileAttachments("case001", "org_bufete_test_1"),
     createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    organizationId: "org_bufete_test_1", 
+    organizationId: "org_bufete_test_1",
   },
   {
     id: "case002",
@@ -119,8 +158,8 @@ export const mockCases: Case[] = [
     subject: CaseSubject.LABORAL,
     assignedLawyerId: "lawyer002_placeholder_uid",
     lastActivityDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    reminders: [],
-    fileAttachments: createFileAttachments("case002", "org_bufete_test_1"), // Updated
+    reminders: createReminders("case002", "lawyer002_placeholder_uid", 5, "Llamar a cliente"),
+    fileAttachments: createFileAttachments("case002", "org_bufete_test_1"),
     createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     organizationId: "org_bufete_test_1",
@@ -133,10 +172,10 @@ export const mockCases: Case[] = [
     processStage: PROCESS_STAGES[2],
     nextActivity: "Juicio Oral",
     subject: CaseSubject.PENAL,
-    assignedLawyerId: "ExyIt8HKmsOoZhkjaIUdC8Rdm733", 
-    lastActivityDate: new Date().toISOString(), 
-    reminders: createReminders("case003", "ExyIt8HKmsOoZhkjaIUdC8Rdm733"),
-    fileAttachments: [], // Updated
+    assignedLawyerId: "ExyIt8HKmsOoZhkjaIUdC8Rdm733",
+    lastActivityDate: new Date().toISOString(),
+    reminders: createReminders("case003", "ExyIt8HKmsOoZhkjaIUdC8Rdm733", 3, "Preparar testigos"),
+    fileAttachments: [],
     createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date().toISOString(),
     organizationId: "org_bufete_test_1",
@@ -151,7 +190,7 @@ export const mockCases: Case[] = [
     subject: CaseSubject.CIVIL,
     lastActivityDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     reminders: [],
-    fileAttachments: [], // Updated
+    fileAttachments: createFileAttachments("case004", "org_bufete_test_1"),
     createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     organizationId: "org_bufete_test_1",
@@ -164,12 +203,49 @@ export const mockCases: Case[] = [
     processStage: PROCESS_STAGES[0],
     nextActivity: "Revisión de borrador de contrato",
     subject: CaseSubject.CIVIL,
-    assignedLawyerId: "lawyer002_placeholder_uid", 
+    assignedLawyerId: "lawyer002_placeholder_uid",
     lastActivityDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    reminders: createReminders("case005", "lawyer002_placeholder_uid"),
-    fileAttachments: createFileAttachments("case005", "org_bufete_test_1"), // Updated
+    reminders: createReminders("case005", "lawyer002_placeholder_uid", 14, "Finalizar revisión"),
+    fileAttachments: createFileAttachments("case005", "org_bufete_test_1"),
     createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    organizationId: "org_bufete_test_1", 
+    organizationId: "org_bufete_test_1",
   }
 ];
+
+const additionalMockCases: Case[] = Array.from({ length: 20 }, (_, i) => {
+  const caseNum = i + 6; // Start from case006
+  const caseId = `case${String(caseNum).padStart(3, '0')}`;
+  const randomSubject = CASE_SUBJECTS_OPTIONS[Math.floor(Math.random() * CASE_SUBJECTS_OPTIONS.length)];
+  const randomProcessStage = PROCESS_STAGES[Math.floor(Math.random() * PROCESS_STAGES.length)];
+  const lawyerIds = ["ExyIt8HKmsOoZhkjaIUdC8Rdm733", "lawyer002_placeholder_uid", undefined]; // Includes unassigned
+  const assignedLawyerId = lawyerIds[Math.floor(Math.random() * lawyerIds.length)];
+  const createdDaysAgo = Math.floor(Math.random() * 180) + 1; // 1 to 180 days ago
+  const lastActivityDaysAgo = Math.floor(Math.random() * createdDaysAgo);
+
+  const clientNames = ["Carlos Vargas", "Lucía Méndez", "Transportes Rápidos S.A.", "Inversiones Seguras Ltda.", "Familia Gutiérrez", "Ricardo Soto", "Ana Lucía Jiménez", "Servicios Integrales Co.", "Ernesto Villanueva", "Laura Fernández"];
+  const causes = ["Divorcio y bienes", "Estafa y apropiación indebida", "Reclamo de pago", "Accidente de tránsito", "Custodia de menores", "Incumplimiento de servicios", "Defensa penal", "Asesoría tributaria", "Constitución de sociedad", "Liquidación de empresa"];
+  const nextActivities = ["Citar a testigos", "Presentar pruebas", "Audiencia de medidas cautelares", "Solicitar peritaje", "Negociar acuerdo", "Investigar bienes", "Reunión con fiscal", "Elaborar informe", "Redactar estatutos", "Notificar a acreedores"];
+
+
+  return {
+    id: caseId,
+    nurej: `2024${String(Math.floor(Math.random() * 8999) + 1000)}${caseNum}`, // Example NUREJ format
+    clientName: clientNames[Math.floor(Math.random() * clientNames.length)],
+    cause: causes[Math.floor(Math.random() * causes.length)],
+    processStage: randomProcessStage,
+    nextActivity: nextActivities[Math.floor(Math.random() * nextActivities.length)],
+    subject: randomSubject,
+    assignedLawyerId: assignedLawyerId,
+    lastActivityDate: new Date(Date.now() - lastActivityDaysAgo * 24 * 60 * 60 * 1000).toISOString(),
+    reminders: createReminders(caseId, assignedLawyerId || "admin_test_org_1_uid", Math.floor(Math.random()*20)+1, `Seguimiento ${randomSubject}`),
+    fileAttachments: createFileAttachments(caseId, "org_bufete_test_1"),
+    createdAt: new Date(Date.now() - createdDaysAgo * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - lastActivityDaysAgo * 24 * 60 * 60 * 1000).toISOString(),
+    organizationId: "org_bufete_test_1",
+  };
+});
+
+export const mockCases: Case[] = [...baseCases, ...additionalMockCases];
+
+    
