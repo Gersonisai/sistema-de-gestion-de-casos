@@ -1,6 +1,6 @@
 
 import type { User, Case, Reminder, FileAttachment, Organization } from "@/lib/types";
-import { UserRole, CaseSubject, PROCESS_STAGES, THEME_PALETTES, CASE_SUBJECTS_OPTIONS, PLAN_LIMITS } from "@/lib/types"; // Added CASE_SUBJECTS_OPTIONS and PLAN_LIMITS
+import { UserRole, CaseSubject, PROCESS_STAGES, THEME_PALETTES, CASE_SUBJECTS_OPTIONS, PLAN_LIMITS } from "@/lib/types";
 
 // Simulate a list of organizations/consorcios
 export const mockOrganizations: Organization[] = [
@@ -13,7 +13,7 @@ export const mockOrganizations: Organization[] = [
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     currentStorageUsedBytes: 0,
-    maxStorageGB: PLAN_LIMITS.system_admin.maxStorageGB, // Initialize from PLAN_LIMITS
+    maxStorageGB: PLAN_LIMITS.system_admin.maxStorageGB,
   },
   {
     id: "org_bufete_test_1",
@@ -24,18 +24,18 @@ export const mockOrganizations: Organization[] = [
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     currentStorageUsedBytes: 1024 * 1024 * 5, // Approx 5MB used
-    maxStorageGB: PLAN_LIMITS.premium.maxStorageGB, // Initialize from PLAN_LIMITS
+    maxStorageGB: PLAN_LIMITS.premium.maxStorageGB,
   },
   {
     id: "org_bufete_gerson_machuca",
     name: "Bufete Gerson Machuca",
-    ownerId: "gerson_machuca_admin_uid", // Placeholder UID for Gerson Machuca
+    ownerId: "gerson_machuca_admin_uid",
     plan: "premium", 
     themePalette: THEME_PALETTES[2].id, 
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     currentStorageUsedBytes: 0,
-    maxStorageGB: PLAN_LIMITS.premium.maxStorageGB, // Initialize from PLAN_LIMITS
+    maxStorageGB: PLAN_LIMITS.premium.maxStorageGB,
   }
 ];
 
@@ -96,7 +96,7 @@ const createReminders = (caseId: string, userId: string, daysOffset: number = 7,
     reminderDate.setHours(Math.floor(Math.random() * 10) + 8, Math.random() > 0.5 ? 30 : 0); // Random time between 08:00 and 17:30
 
     reminders.push({
-      id: `${caseId}-reminder${i+1}-${Date.now().toString().slice(-5)}`,
+      id: `${caseId}-reminder${i+1}-${Date.now().toString().slice(-5)}-${Math.random().toString(36).substring(2, 7)}`,
       date: reminderDate.toISOString(),
       message: `${messageBase} - Actividad ${i+1}`,
       createdBy: userId,
@@ -105,7 +105,7 @@ const createReminders = (caseId: string, userId: string, daysOffset: number = 7,
   return reminders;
 };
 
-const createFileAttachments = (caseId: string, organizationId = "org_bufete_test_1"): FileAttachment[] => {
+const createFileAttachments = (caseId: string, organizationId: string): FileAttachment[] => {
   const attachments: FileAttachment[] = [];
   const numAttachments = Math.floor(Math.random() * 4); // 0 to 3 attachments
   const fileTypes = [
@@ -118,9 +118,9 @@ const createFileAttachments = (caseId: string, organizationId = "org_bufete_test
 
   for (let i = 0; i < numAttachments; i++) {
     const fileInfo = fileTypes[Math.floor(Math.random() * fileTypes.length)];
-    const fileName = `${fileInfo.name}_${caseId}_${i+1}.${fileInfo.ext}`;
+    const fileName = `${fileInfo.name}_${caseId.split('_')[0]}_${i+1}.${fileInfo.ext}`; // Use original caseId base for filename consistency
     attachments.push({
-      id: `${caseId}-doc${i+1}-${Date.now().toString().slice(-5)}`,
+      id: `${caseId}-doc${i+1}-${Date.now().toString().slice(-5)}-${Math.random().toString(36).substring(2, 7)}`,
       fileName: fileName,
       gcsPath: `tenants/${organizationId}/casos/${caseId}/documentos/${fileName}`,
       contentType: fileInfo.type,
@@ -213,7 +213,7 @@ const baseCases: Case[] = [
   }
 ];
 
-const additionalMockCases: Case[] = Array.from({ length: 20 }, (_, i) => {
+const additionalMockCasesForOrg1: Case[] = Array.from({ length: 20 }, (_, i) => {
   const caseNum = i + 6; // Start from case006
   const caseId = `case${String(caseNum).padStart(3, '0')}`;
   const randomSubject = CASE_SUBJECTS_OPTIONS[Math.floor(Math.random() * CASE_SUBJECTS_OPTIONS.length)];
@@ -226,11 +226,13 @@ const additionalMockCases: Case[] = Array.from({ length: 20 }, (_, i) => {
   const clientNames = ["Carlos Vargas", "Lucía Méndez", "Transportes Rápidos S.A.", "Inversiones Seguras Ltda.", "Familia Gutiérrez", "Ricardo Soto", "Ana Lucía Jiménez", "Servicios Integrales Co.", "Ernesto Villanueva", "Laura Fernández"];
   const causes = ["Divorcio y bienes", "Estafa y apropiación indebida", "Reclamo de pago", "Accidente de tránsito", "Custodia de menores", "Incumplimiento de servicios", "Defensa penal", "Asesoría tributaria", "Constitución de sociedad", "Liquidación de empresa"];
   const nextActivities = ["Citar a testigos", "Presentar pruebas", "Audiencia de medidas cautelares", "Solicitar peritaje", "Negociar acuerdo", "Investigar bienes", "Reunión con fiscal", "Elaborar informe", "Redactar estatutos", "Notificar a acreedores"];
+  const orgIdForTheseCases = "org_bufete_test_1";
+  const defaultUserIdForReminders = assignedLawyerId || "admin_test_org_1_uid";
 
 
   return {
     id: caseId,
-    nurej: `2024${String(Math.floor(Math.random() * 8999) + 1000)}${caseNum}`, // Example NUREJ format
+    nurej: `2024${String(Math.floor(Math.random() * 8999) + 1000)}${String(caseNum).padStart(2, '0')}`,
     clientName: clientNames[Math.floor(Math.random() * clientNames.length)],
     cause: causes[Math.floor(Math.random() * causes.length)],
     processStage: randomProcessStage,
@@ -238,14 +240,49 @@ const additionalMockCases: Case[] = Array.from({ length: 20 }, (_, i) => {
     subject: randomSubject,
     assignedLawyerId: assignedLawyerId,
     lastActivityDate: new Date(Date.now() - lastActivityDaysAgo * 24 * 60 * 60 * 1000).toISOString(),
-    reminders: createReminders(caseId, assignedLawyerId || "admin_test_org_1_uid", Math.floor(Math.random()*20)+1, `Seguimiento ${randomSubject}`),
-    fileAttachments: createFileAttachments(caseId, "org_bufete_test_1"),
+    reminders: createReminders(caseId, defaultUserIdForReminders, Math.floor(Math.random()*20)+1, `Seguimiento ${randomSubject}`),
+    fileAttachments: createFileAttachments(caseId, orgIdForTheseCases),
     createdAt: new Date(Date.now() - createdDaysAgo * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - lastActivityDaysAgo * 24 * 60 * 60 * 1000).toISOString(),
-    organizationId: "org_bufete_test_1",
+    organizationId: orgIdForTheseCases,
   };
 });
 
-export const mockCases: Case[] = [...baseCases, ...additionalMockCases];
+const allCases: Case[] = [...baseCases, ...additionalMockCasesForOrg1];
+
+// Duplicate additionalMockCasesForOrg1 for other admin organizations
+const adminUsers = mockUsers.filter(u => u.role === UserRole.ADMIN);
+const sourceOrgIdForDuplication = "org_bufete_test_1"; // Cases from this org will be duplicated
+
+adminUsers.forEach(admin => {
+  if (admin.organizationId && admin.organizationId !== sourceOrgIdForDuplication) {
+    const targetOrgId = admin.organizationId;
+    const casesForThisAdminOrg = additionalMockCasesForOrg1.map((originalCase, index) => {
+      const newCaseId = `${originalCase.id}_${targetOrgId.slice(-4)}_${index}`; // Make ID more unique
+      return {
+        ...originalCase,
+        id: newCaseId,
+        organizationId: targetOrgId,
+        assignedLawyerId: undefined, // No lawyers defined in these other mock orgs
+        reminders: originalCase.reminders.map(r => ({
+          ...r,
+          id: `${newCaseId}-reminder${r.id.split('-').pop()}`, // Attempt to keep some uniqueness
+          createdBy: admin.id, // Admin of the new org creates the reminder
+        })),
+        fileAttachments: originalCase.fileAttachments.map(fa => ({
+          ...fa,
+          id: `${newCaseId}-doc${fa.id.split('-').pop()}`,
+          gcsPath: `tenants/${targetOrgId}/casos/${newCaseId}/documentos/${fa.fileName}`,
+        })),
+        // NUREJ should ideally be unique per real case, but for mock data we can keep it or slightly alter
+        nurej: `${originalCase.nurej.slice(0, -2)}${String(index + 10).padStart(2, '0')}`, // Make NUREJ slightly different
+      };
+    });
+    allCases.push(...casesForThisAdminOrg);
+  }
+});
+
+
+export const mockCases: Case[] = allCases;
 
     
