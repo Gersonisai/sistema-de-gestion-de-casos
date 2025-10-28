@@ -31,12 +31,12 @@ export const mockOrganizations: Organization[] = [
     id: "org_bufete_gerson_machuca",
     name: "Bufete Gerson Machuca",
     ownerId: "gerson_machuca_admin_uid",
-    plan: "premium", 
+    plan: "enterprise", 
     themePalette: THEME_PALETTES[2].id, 
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     currentStorageUsedBytes: 0,
-    maxStorageGB: PLAN_LIMITS.premium.maxStorageGB,
+    maxStorageGB: PLAN_LIMITS.enterprise.maxStorageGB,
   }
 ];
 
@@ -260,7 +260,7 @@ const baseCases: Case[] = [
   }
 ];
 
-const additionalMockCasesForOrg1: Case[] = Array.from({ length: 20 }, (_, i) => {
+const additionalMockCases: Case[] = Array.from({ length: 20 }, (_, i) => {
   const caseNum = i + 6; // Start from case006
   const caseId = `case${String(caseNum).padStart(3, '0')}`;
   const randomSubject = CASE_SUBJECTS_OPTIONS[Math.floor(Math.random() * CASE_SUBJECTS_OPTIONS.length)];
@@ -273,7 +273,6 @@ const additionalMockCasesForOrg1: Case[] = Array.from({ length: 20 }, (_, i) => 
   const clientNames = ["Carlos Vargas", "Lucía Méndez", "Transportes Rápidos S.A.", "Inversiones Seguras Ltda.", "Familia Gutiérrez", "Ricardo Soto", "Ana Lucía Jiménez", "Servicios Integrales Co.", "Ernesto Villanueva", "Laura Fernández"];
   const causes = ["Divorcio y bienes", "Estafa y apropiación indebida", "Reclamo de pago", "Accidente de tránsito", "Custodia de menores", "Incumplimiento de servicios", "Defensa penal", "Asesoría tributaria", "Constitución de sociedad", "Liquidación de empresa"];
   const nextActivities = ["Citar a testigos", "Presentar pruebas", "Audiencia de medidas cautelares", "Solicitar peritaje", "Negociar acuerdo", "Investigar bienes", "Reunión con fiscal", "Elaborar informe", "Redactar estatutos", "Notificar a acreedores"];
-  const orgIdForTheseCases = "org_bufete_test_1";
   const defaultUserIdForReminders = assignedLawyerId || "admin_test_org_1_uid";
 
 
@@ -288,23 +287,23 @@ const additionalMockCasesForOrg1: Case[] = Array.from({ length: 20 }, (_, i) => 
     assignedLawyerId: assignedLawyerId,
     lastActivityDate: new Date(Date.now() - lastActivityDaysAgo * 24 * 60 * 60 * 1000).toISOString(),
     reminders: createReminders(caseId, defaultUserIdForReminders, Math.floor(Math.random()*20)+1, `Seguimiento ${randomSubject}`),
-    fileAttachments: createFileAttachments(caseId, orgIdForTheseCases),
+    fileAttachments: createFileAttachments(caseId, "org_bufete_test_1"),
     createdAt: new Date(Date.now() - createdDaysAgo * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - lastActivityDaysAgo * 24 * 60 * 60 * 1000).toISOString(),
-    organizationId: orgIdForTheseCases,
+    organizationId: "org_bufete_test_1",
   };
 });
 
-let allCases: Case[] = [...baseCases, ...additionalMockCasesForOrg1];
+let allCases: Case[] = [...baseCases, ...additionalMockCases];
 
-// Duplicate additionalMockCasesForOrg1 for other admin organizations
+// Duplicate additionalMockCases for other admin organizations
 const adminUsers = mockUsers.filter(u => u.role === UserRole.ADMIN);
 const sourceOrgIdForDuplication = "org_bufete_test_1"; // Cases from this org will be duplicated
 
 adminUsers.forEach(admin => {
   if (admin.organizationId && admin.organizationId !== sourceOrgIdForDuplication) {
     const targetOrgId = admin.organizationId;
-    const casesForThisAdminOrg = additionalMockCasesForOrg1.map((originalCase, index) => {
+    const casesForThisAdminOrg = additionalMockCases.map((originalCase, index) => {
       const newCaseId = `${originalCase.id}_${targetOrgId.slice(-4)}_${index}`; // Make ID more unique
       return {
         ...originalCase,
