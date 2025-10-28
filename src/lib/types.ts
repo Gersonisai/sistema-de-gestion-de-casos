@@ -1,4 +1,5 @@
 
+
 export enum UserRole {
   ADMIN = "admin", // Admin of an organization/consorcio
   LAWYER = "lawyer",
@@ -36,7 +37,7 @@ export interface User {
   location?: string; // Ej: "La Paz, Bolivia"
   specialties?: CaseSubject[]; // Para abogados
   bio?: string; // Para abogados
-  profilePictureUrl?: string; // Para abogados
+  profilePictureUrl?: string; // Para abogados y clientes
   hourlyRateRange?: [number, number]; // Ej: [100, 300] para abogados
 }
 
@@ -46,8 +47,8 @@ export enum CaseSubject {
   FAMILIAR = "Familiar",
   LABORAL = "Laboral",
   ADMINISTRATIVO = "Administrativo",
-  COMERCIAL = "Comercial", // Añadido para más variedad
-  TRIBUTARIO = "Tributario", // Añadido para más variedad
+  COMERCIAL = "Comercial",
+  TRIBUTARIO = "Tributario",
   OTROS = "Otros",
 }
 
@@ -59,18 +60,19 @@ export interface Reminder {
 }
 
 export interface FileAttachment {
-  id: string;
-  fileName: string; // Original name of the uploaded file
-  gcsPath: string; // Simulated GCS path, e.g., "tenants/orgId/casos/caseId/fileName.pdf"
-  contentType: string; // MIME type of the file
-  size?: number; // Size in bytes
-  uploadedAt: string; // ISO date string
+  id:string;
+  fileName: string;
+  gcsPath: string;
+  contentType: string;
+  size?: number;
+  uploadedAt: string;
 }
 
 export interface Case {
   id: string;
   nurej: string;
-  clientName: string; // En el futuro, podría ser un clientId
+  clientName: string; 
+  clientId?: string; // ID del cliente (usuario)
   cause: string;
   processStage: string;
   nextActivity: string;
@@ -82,6 +84,15 @@ export interface Case {
   createdAt: string; // ISO date string
   updatedAt: string; // ISO date string
   organizationId?: string; // ID of the organization this case belongs to
+}
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string; // ID of the conversation (e.g., orgId for group, or a combined user ID for 1-on-1)
+  senderId: string;
+  senderName: string;
+  content: string;
+  timestamp: string; // ISO date string
 }
 
 export const PROCESS_STAGES = [
@@ -114,4 +125,3 @@ export const THEME_PALETTES = [
 ] as const;
 
 export type ThemePaletteId = typeof THEME_PALETTES[number]['id'];
-

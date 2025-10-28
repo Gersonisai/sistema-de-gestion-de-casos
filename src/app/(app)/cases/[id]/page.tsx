@@ -10,7 +10,7 @@ import type { Case, User, FileAttachment } from "@/lib/types";
 import { UserRole } from "@/lib/types";
 import { mockCases, mockUsers } from "@/data/mockData"; 
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, AlertTriangle, Download, FileText } from "lucide-react";
+import { Loader2, AlertTriangle, Download, FileText, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -24,7 +24,7 @@ function CaseDetailPageContent() {
   const routeParams = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { currentUser, isAdmin, isLawyer, isSecretary, isLoading: authIsLoading } = useAuth();
+  const { currentUser, isAdmin, isLawyer, isSecretary, isClient, isLoading: authIsLoading } = useAuth();
   const { toast } = useToast();
   
   const [currentCase, setCurrentCase] = useState<Case | null | undefined>(undefined);
@@ -42,13 +42,26 @@ function CaseDetailPageContent() {
       return;
     }
     let foundCase = mockCases.find((c) => c.id === caseId);
-    if (foundCase && currentUser?.organizationId && foundCase.organizationId !== currentUser.organizationId) {
-      if (currentUser.role !== UserRole.ADMIN || currentUser.organizationId !== "org_default_admin" ) {
-        foundCase = undefined; 
-      }
+
+    // Security check
+    if (foundCase && currentUser) {
+        const isOrgMember = foundCase.organizationId === currentUser.organizationId;
+        const isAssignedLawyer = foundCase.assignedLawyerId === currentUser.id;
+        const isCaseClient = foundCase.clientId === currentUser.id;
+
+        if (isClient && !isCaseClient) {
+            foundCase = undefined;
+        } else if (!isClient && !isOrgMember && currentUser.role !== UserRole.ADMIN) {
+            foundCase = undefined;
+        } else if (isLawyer && !isAssignedLawyer) {
+            foundCase = undefined;
+        }
+    } else if (!currentUser) {
+        foundCase = undefined;
     }
+
     setCurrentCase(foundCase || null);
-  }, [caseId, routeParams, authIsLoading, currentCase, currentUser]);
+  }, [caseId, routeParams, authIsLoading, currentCase, currentUser, isClient, isLawyer]);
 
   useEffect(() => {
     setIsEditing(searchParams.get('edit') === 'true');
@@ -84,18 +97,23 @@ function CaseDetailPageContent() {
 
   const handleSimulatedDownload = (attachment: FileAttachment) => {
     console.log(`[FRONTEND SIMULATION] Requesting download URL for: ${attachment.fileName} from path: ${attachment.gcsPath}`);
-    // In a real app: const { downloadUrl } = await fetch('/api/generate-download-url', { method: 'POST', body: JSON.stringify({ filePath: attachment.gcsPath }) }).then(res => res.json());
-    // window.open(downloadUrl, '_blank');
     toast({
       title: "Descarga Simulada",
       description: `Se iniciaría la descarga de "${attachment.fileName}". (URL firmada no implementada en backend).`,
     });
-     // Simulate opening a placeholder
     window.open(`https://placehold.co/300x200.png?text=Simulated+Download+of+${attachment.fileName}`, "_blank");
   };
 
   const canEditThisCase = isAdmin || isSecretary || (isLawyer && currentCase?.assignedLawyerId === currentUser?.id);
   const canDeleteThisCase = isAdmin;
+  const assignedLawyer = useMemo(() => mockUsers.find(u => u.id === currentCase?.assignedLawyerId), [currentCase]);
+  const caseClient = useMemo(() => mockUsers.find(u => u.id === currentCase?.clientId), [currentCase]);
+
+  let chatPartnerId: string | undefined;
+  if(isClient) chatPartnerId = assignedLawyer?.id;
+  if(isLawyer) chatPartnerId = caseClient?.id;
+  if(isAdmin || isSecretary) chatPartnerId = assignedLawyer?.id || caseClient?.id;
+
 
   const lawyersInOrg = currentUser?.organizationId 
     ? mockUsers.filter(u => u.organizationId === currentUser.organizationId && u.role === UserRole.LAWYER)
@@ -115,10 +133,10 @@ function CaseDetailPageContent() {
         <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
         <h2 className="text-2xl font-semibold">Caso No Encontrado</h2>
         <p className="text-muted-foreground mt-2">
-          El caso que está buscando no existe, no tiene un ID válido en la URL, ha sido eliminado, o no pertenece a su organización.
+          El caso que está buscando no existe, ha sido eliminado o no tiene permiso para verlo.
         </p>
         <Button asChild className="mt-6">
-          <Link href="/dashboard">Volver al Dashboard</Link>
+          <Link href="/dashboard">Volver al Panel</Link>
         </Button>
       </div>
     );
@@ -137,16 +155,29 @@ function CaseDetailPageContent() {
     );
   }
   
-  const assignedLawyer = mockUsers.find(u => u.id === currentCase.assignedLawyerId);
+  const pageActions = (
+    <div className="flex gap-2">
+        {chatPartnerId && (
+            <Button asChild variant="outline">
+                <Link href={`/chat?conversationId=${chatPartnerId}`}>
+                    <MessageSquare className="mr-2 h-4 w-4"/>
+                    Chatear
+                </Link>
+            </Button>
+        )}
+        {canEditThisCase && (
+            <Button onClick={() => router.push(`/cases/${caseId}?edit=true`)} className="shadow-md">
+                Editar Caso
+            </Button>
+        )}
+    </div>
+  );
+
   return (
     <div className="container mx-auto py-8">
       <PageHeader 
         title={`Detalle del Caso: ${currentCase.clientName}`}
-        actionButton={canEditThisCase && (
-          <Button onClick={() => router.push(`/cases/${caseId}?edit=true`)} className="shadow-md">
-            Editar Caso
-          </Button>
-        )}
+        actionButton={pageActions}
       />
       <Card className="shadow-xl">
         <CardHeader>
@@ -164,25 +195,28 @@ function CaseDetailPageContent() {
             <div><strong className="text-muted-foreground">Etapa del Proceso:</strong><p>{currentCase.processStage}</p></div>
             <div><strong className="text-muted-foreground">Próxima Actividad:</strong><p>{currentCase.nextActivity}</p></div>
             {assignedLawyer && <div><strong className="text-muted-foreground">Abogado Asignado:</strong><p>{assignedLawyer.name}</p></div>}
+            {caseClient && !isClient && <div><strong className="text-muted-foreground">Cliente:</strong><p>{caseClient.name} ({caseClient.email})</p></div>}
             <div><strong className="text-muted-foreground">Última Actividad:</strong><p>{format(parseISO(currentCase.lastActivityDate), "PPPp", { locale: es })}</p></div>
             <div><strong className="text-muted-foreground">Fecha de Creación:</strong><p>{format(parseISO(currentCase.createdAt), "PPPp", { locale: es })}</p></div>
           </div>
 
-          <div className="pt-4 border-t" id="reminders">
-            <h3 className="text-lg font-semibold mb-2">Recordatorios</h3>
-            {currentCase.reminders.length > 0 ? (
-              <ul className="space-y-2">
-                {currentCase.reminders.map(r => (
-                  <li key={r.id} className="p-3 border rounded-md bg-muted/50">
-                    <p className="font-medium">{r.message}</p>
-                    <p className="text-sm text-muted-foreground">Fecha: {format(parseISO(r.date), "Pp HH:mm", { locale: es })}</p>
-                  </li>
-                ))}
-              </ul>
-            ) : <p className="text-muted-foreground">No hay recordatorios.</p>}
-          </div>
+          {!isClient && (
+            <div className="pt-4 border-t" id="reminders">
+                <h3 className="text-lg font-semibold mb-2">Recordatorios</h3>
+                {currentCase.reminders.length > 0 ? (
+                <ul className="space-y-2">
+                    {currentCase.reminders.map(r => (
+                    <li key={r.id} className="p-3 border rounded-md bg-muted/50">
+                        <p className="font-medium">{r.message}</p>
+                        <p className="text-sm text-muted-foreground">Fecha: {format(parseISO(r.date), "Pp HH:mm", { locale: es })}</p>
+                    </li>
+                    ))}
+                </ul>
+                ) : <p className="text-muted-foreground">No hay recordatorios.</p>}
+            </div>
+          )}
 
-          <div className="pt-4 border-t" id="documents"> {/* Updated section title */}
+          <div className="pt-4 border-t" id="documents">
             <h3 className="text-lg font-semibold mb-2">Archivos Adjuntos</h3>
             {currentCase.fileAttachments.length > 0 ? (
               <ul className="space-y-2">

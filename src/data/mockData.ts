@@ -1,6 +1,7 @@
 
-import type { User, Case, Reminder, FileAttachment, Organization } from "@/lib/types";
-import { UserRole, CaseSubject, PROCESS_STAGES, THEME_PALETTES, CASE_SUBJECTS_OPTIONS, PLAN_LIMITS } from "@/lib/types";
+
+import type { User, Case, Reminder, FileAttachment, Organization, ChatMessage } from "@/lib/types";
+import { UserRole, CaseSubject, PROCESS_STAGES, THEME_PALETTES, PLAN_LIMITS, CASE_SUBJECTS_OPTIONS } from "@/lib/types";
 
 // Simulate a list of organizations/consorcios
 export const mockOrganizations: Organization[] = [
@@ -48,6 +49,7 @@ export const mockUsers: User[] = [
     name: "Carlos Soliz",
     role: UserRole.CLIENT,
     location: "Santa Cruz de la Sierra, Bolivia",
+    profilePictureUrl: "https://placehold.co/400x400/FBC6A4/614124?text=CS",
   },
   {
     id: "client002_placeholder_uid",
@@ -55,6 +57,7 @@ export const mockUsers: User[] = [
     name: "Brenda Mendoza",
     role: UserRole.CLIENT,
     location: "Buenos Aires, Argentina",
+    profilePictureUrl: "https://placehold.co/400x400/A1CCD1/394867?text=BM",
   },
   
   // --- ADMINISTRADORES ---
@@ -66,6 +69,7 @@ export const mockUsers: User[] = [
     organizationId: "org_default_admin",
     location: "La Paz, Bolivia",
     specialties: [CaseSubject.ADMINISTRATIVO, CaseSubject.CIVIL],
+    profilePictureUrl: "https://placehold.co/400x400/7B66FF/FFFFFF?text=A",
   },
   {
     id: "admin_test_org_1_uid",
@@ -75,6 +79,7 @@ export const mockUsers: User[] = [
     organizationId: "org_bufete_test_1",
     location: "Cochabamba, Bolivia",
     specialties: [CaseSubject.LABORAL],
+    profilePictureUrl: "https://placehold.co/400x400/86B6F6/FFFFFF?text=A1",
   },
   {
     id: "gerson_machuca_admin_uid", 
@@ -84,6 +89,7 @@ export const mockUsers: User[] = [
     organizationId: "org_bufete_gerson_machuca",
     location: "Bogotá, Colombia",
     specialties: [CaseSubject.PENAL, CaseSubject.COMERCIAL],
+    profilePictureUrl: "https://placehold.co/400x400/FFD700/000000?text=GM",
   },
 
   // --- ABOGADOS ---
@@ -120,6 +126,7 @@ export const mockUsers: User[] = [
     role: UserRole.SECRETARY,
     organizationId: "org_bufete_test_1",
     location: "Cochabamba, Bolivia",
+    profilePictureUrl: "https://placehold.co/400x400/F5E8DD/614124?text=LV",
   },
 ];
 
@@ -174,6 +181,7 @@ const baseCases: Case[] = [
     id: "case001",
     nurej: "202300101",
     clientName: "Juan Rodríguez",
+    clientId: "client001_placeholder_uid",
     cause: "Incumplimiento de contrato",
     processStage: PROCESS_STAGES[1],
     nextActivity: "Audiencia de conciliación",
@@ -190,6 +198,7 @@ const baseCases: Case[] = [
     id: "case002",
     nurej: "202300202",
     clientName: "María García",
+    clientId: "client002_placeholder_uid",
     cause: "Despido injustificado",
     processStage: PROCESS_STAGES[0],
     nextActivity: "Presentación de demanda",
@@ -286,7 +295,7 @@ const additionalMockCasesForOrg1: Case[] = Array.from({ length: 20 }, (_, i) => 
   };
 });
 
-const allCases: Case[] = [...baseCases, ...additionalMockCasesForOrg1];
+let allCases: Case[] = [...baseCases, ...additionalMockCasesForOrg1];
 
 // Duplicate additionalMockCasesForOrg1 for other admin organizations
 const adminUsers = mockUsers.filter(u => u.role === UserRole.ADMIN);
@@ -322,3 +331,46 @@ adminUsers.forEach(admin => {
 
 
 export const mockCases: Case[] = allCases;
+
+export const mockMessages: ChatMessage[] = [
+    {
+      id: 'msg1',
+      conversationId: 'org_bufete_test_1',
+      senderId: 'ExyIt8HKmsOoZhkjaIUdC8Rdm733',
+      senderName: 'Lic. Ana Pérez',
+      content: 'Equipo, por favor revisar el caso 003 de Pedro Martinez. La audiencia es la próxima semana.',
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'msg2',
+      conversationId: 'org_bufete_test_1',
+      senderId: 'secretary001_placeholder_uid',
+      senderName: 'Sra. Laura Vargas',
+      content: 'Entendido, Lic. Ana. Ya preparé la carpeta digital y está en los adjuntos del caso.',
+      timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'msg3',
+      conversationId: 'org_bufete_test_1',
+      senderId: 'lawyer002_placeholder_uid',
+      senderName: 'Lic. Carlos López',
+      content: 'Cualquier ayuda que necesiten con la jurisprudencia para ese caso, me avisan.',
+      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'msg4',
+      conversationId: 'ExyIt8HKmsOoZhkjaIUdC8Rdm733_client001_placeholder_uid', // Chat Ana y Cliente Carlos S.
+      senderId: 'ExyIt8HKmsOoZhkjaIUdC8Rdm733',
+      senderName: 'Lic. Ana Pérez',
+      content: 'Estimado Sr. Soliz, hemos recibido los documentos que nos envió. Los estamos revisando.',
+      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'msg5',
+      conversationId: 'ExyIt8HKmsOoZhkjaIUdC8Rdm733_client001_placeholder_uid',
+      senderId: 'client001_placeholder_uid',
+      senderName: 'Carlos Soliz',
+      content: 'Perfecto, muchas gracias abogada. Quedo atento a sus comentarios.',
+      timestamp: new Date(Date.now() - 23.5 * 60 * 60 * 1000).toISOString(),
+    },
+];

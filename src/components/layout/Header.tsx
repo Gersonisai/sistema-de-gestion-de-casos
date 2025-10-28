@@ -8,7 +8,8 @@ import {
   UserCircle,
   Menu, 
   Landmark, 
-  Settings as SettingsIcon, // Import Settings icon
+  Settings as SettingsIcon,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +26,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
 
 export function Header() {
-  const { currentUser, logout, isAdmin } = useAuth(); // Added isAdmin
+  const { currentUser, logout, isAdmin, isClient } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleMobileLinkClick = () => {
@@ -35,25 +36,27 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6 shadow-sm">
       
-      <div className="md:hidden"> 
-        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="icon">
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Abrir/Cerrar menú</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent 
-            side="left" 
-            className="flex flex-col p-0 bg-sidebar text-sidebar-foreground w-[280px] sm:w-[320px]"
-          >
-            <SheetHeader className="p-4 border-b border-sidebar-border">
-              <SheetTitle className="text-sidebar-foreground">Menú Principal</SheetTitle>
-            </SheetHeader>
-            <SidebarNav isMobile={true} onLinkClick={handleMobileLinkClick} />
-          </SheetContent>
-        </Sheet>
-      </div>
+      {!isClient && (
+        <div className="md:hidden"> 
+          <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon">
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Abrir/Cerrar menú</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent 
+              side="left" 
+              className="flex flex-col p-0 bg-background w-[280px] sm:w-[320px]"
+            >
+              <SheetHeader className="p-4 border-b">
+                <SheetTitle>Menú Principal</SheetTitle>
+              </SheetHeader>
+              <SidebarNav isMobile={true} onLinkClick={handleMobileLinkClick} />
+            </SheetContent>
+          </Sheet>
+        </div>
+      )}
       
 
       <div className="flex w-full items-center gap-4 md:ml-0"> 
@@ -61,6 +64,12 @@ export function Header() {
           YASI K'ARI
         </Link>
         <div className="ml-auto flex items-center gap-2">
+           <Button variant="ghost" size="icon" className="rounded-full" asChild>
+            <Link href="/chat">
+              <MessageSquare className="h-5 w-5" />
+              <span className="sr-only">Chat</span>
+            </Link>
+          </Button>
           <Button variant="ghost" size="icon" className="rounded-full">
             <Bell className="h-5 w-5" />
             <span className="sr-only">Notificaciones</span>
@@ -68,7 +77,11 @@ export function Header() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
-                <UserCircle className="h-6 w-6" />
+                {currentUser?.profilePictureUrl ? (
+                  <img src={currentUser.profilePictureUrl} alt="Perfil" className="h-7 w-7 rounded-full object-cover" />
+                ) : (
+                  <UserCircle className="h-6 w-6" />
+                )}
                 <span className="sr-only">Menú de usuario</span>
               </Button>
             </DropdownMenuTrigger>
@@ -78,7 +91,7 @@ export function Header() {
                 <p className="text-xs text-muted-foreground font-normal">{currentUser?.email}</p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {isAdmin && ( // Conditionally render Settings link for admins
+              {isAdmin && (
                 <DropdownMenuItem asChild>
                   <Link href="/settings">
                     <SettingsIcon className="mr-2 h-4 w-4" />
@@ -86,12 +99,20 @@ export function Header() {
                   </Link>
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem asChild>
-                <Link href="/subscribe">
-                  <Landmark className="mr-2 h-4 w-4" />
-                  Planes y Suscripción
-                </Link>
-              </DropdownMenuItem>
+               <DropdownMenuItem asChild>
+                  <Link href="/chat">
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Mensajes
+                  </Link>
+                </DropdownMenuItem>
+              {!isClient && (
+                <DropdownMenuItem asChild>
+                  <Link href="/subscribe">
+                    <Landmark className="mr-2 h-4 w-4" />
+                    Planes y Suscripción
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout}>
                 <LogOut className="mr-2 h-4 w-4" />
