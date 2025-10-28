@@ -41,12 +41,31 @@ export const mockOrganizations: Organization[] = [
 
 
 export const mockUsers: User[] = [
+  // --- CLIENTES ---
+  {
+    id: "client001_placeholder_uid",
+    email: "cliente1@email.com",
+    name: "Carlos Soliz",
+    role: UserRole.CLIENT,
+    location: "Santa Cruz de la Sierra, Bolivia",
+  },
+  {
+    id: "client002_placeholder_uid",
+    email: "cliente2@email.com",
+    name: "Brenda Mendoza",
+    role: UserRole.CLIENT,
+    location: "Buenos Aires, Argentina",
+  },
+  
+  // --- ADMINISTRADORES ---
   {
     id: "Uh8GnPZnGkNVpEqXwsPJJtTc8R63", // Admin UID from Firebase
     email: "admin@lexcase.com",
     name: "Admin YASI K'ARI",
     role: UserRole.ADMIN,
     organizationId: "org_default_admin",
+    location: "La Paz, Bolivia",
+    specialties: [CaseSubject.ADMINISTRATIVO, CaseSubject.CIVIL],
   },
   {
     id: "admin_test_org_1_uid",
@@ -54,6 +73,8 @@ export const mockUsers: User[] = [
     name: "Admin Bufete Uno",
     role: UserRole.ADMIN,
     organizationId: "org_bufete_test_1",
+    location: "Cochabamba, Bolivia",
+    specialties: [CaseSubject.LABORAL],
   },
   {
     id: "gerson_machuca_admin_uid", 
@@ -61,13 +82,22 @@ export const mockUsers: User[] = [
     name: "Gerson Machuca",
     role: UserRole.ADMIN,
     organizationId: "org_bufete_gerson_machuca",
+    location: "Bogotá, Colombia",
+    specialties: [CaseSubject.PENAL, CaseSubject.COMERCIAL],
   },
+
+  // --- ABOGADOS ---
   {
     id: "ExyIt8HKmsOoZhkjaIUdC8Rdm733",
     email: "abogado1@lexcase.com",
     name: "Lic. Ana Pérez",
     role: UserRole.LAWYER,
     organizationId: "org_bufete_test_1",
+    location: "Cochabamba, Bolivia",
+    specialties: [CaseSubject.PENAL, CaseSubject.FAMILIAR],
+    bio: "Abogada con 10 años de experiencia en derecho penal y familiar, comprometida con la justicia y la defensa de los derechos de mis clientes. Especializada en litigios complejos.",
+    profilePictureUrl: "https://placehold.co/400x400/E8D5C4/614124?text=AP",
+    hourlyRateRange: [80, 150],
   },
   {
     id: "lawyer002_placeholder_uid",
@@ -75,13 +105,21 @@ export const mockUsers: User[] = [
     name: "Lic. Carlos López",
     role: UserRole.LAWYER,
     organizationId: "org_bufete_test_1",
+    location: "Santa Cruz de la Sierra, Bolivia",
+    specialties: [CaseSubject.CIVIL, CaseSubject.COMERCIAL, CaseSubject.LABORAL],
+    bio: "Especialista en derecho civil y comercial, con enfoque en contratos y litigios empresariales. Asesoramiento integral a empresas y particulares.",
+    profilePictureUrl: "https://placehold.co/400x400/D2E0FB/394867?text=CL",
+    hourlyRateRange: [100, 200],
   },
+
+  // --- SECRETARIAS ---
   {
     id: "secretary001_placeholder_uid",
     email: "secretaria1@lexcase.com",
     name: "Sra. Laura Vargas",
     role: UserRole.SECRETARY,
     organizationId: "org_bufete_test_1",
+    location: "Cochabamba, Bolivia",
   },
 ];
 
@@ -284,5 +322,3 @@ adminUsers.forEach(admin => {
 
 
 export const mockCases: Case[] = allCases;
-
-    

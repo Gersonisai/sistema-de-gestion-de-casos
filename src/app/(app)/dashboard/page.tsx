@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { isFuture, isToday, parseISO } from "date-fns";
+import { ClientDashboard } from "@/components/marketplace/ClientDashboard";
 
 type SortField = "lastActivityDate" | "clientName" | "nurej" | "createdAt";
 type SortDirection = "asc" | "desc";
@@ -43,7 +44,7 @@ const sortDirectionOptions: { value: SortDirection; label: string }[] = [
 
 
 export default function DashboardPage() {
-  const { currentUser, isAdmin, isLawyer, isSecretary } = useAuth();
+  const { currentUser, isAdmin, isLawyer, isSecretary, isClient } = useAuth();
   const [cases, setCases] = useState<Case[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [subjectFilter, setSubjectFilter] = useState<string>(ALL_SUBJECTS_FILTER_KEY);
@@ -51,6 +52,8 @@ export default function DashboardPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   useEffect(() => {
+    if (isClient) return; // Clientes no gestionan casos de esta forma
+
     let userCases = initialMockCases;
     if (currentUser?.organizationId) {
       userCases = initialMockCases.filter(c => c.organizationId === currentUser.organizationId);
@@ -63,7 +66,7 @@ export default function DashboardPage() {
       userCases = initialMockCases.filter(c => c.assignedLawyerId === currentUser.id);
     }
     setCases(userCases);
-  }, [currentUser]);
+  }, [currentUser, isClient]);
 
   const filteredCases = useMemo(() => {
     let sortedCases = [...cases]
@@ -98,6 +101,8 @@ export default function DashboardPage() {
   }, [cases, searchTerm, subjectFilter, sortField, sortDirection]);
 
   const stats = useMemo(() => {
+    if (isClient) return {}; // No hay estadísticas para clientes en esta vista
+
     const isUserAdminOrSecretary = isAdmin || isSecretary;
     // Primary stat: all cases in org for admin/secretary, assigned for lawyer
     const primaryStatCases = isUserAdminOrSecretary 
@@ -146,7 +151,7 @@ export default function DashboardPage() {
       totalTeamMembersCount,
       chartData
     };
-  }, [cases, isAdmin, isSecretary, currentUser]);
+  }, [cases, isAdmin, isSecretary, currentUser, isClient]);
 
   const chartConfig = {
     count: { label: "Casos", color: "hsl(var(--primary))" },
@@ -169,6 +174,10 @@ export default function DashboardPage() {
       </Link>
     );
   };
+
+  if (isClient) {
+    return <ClientDashboard />;
+  }
 
   return (
     <div className="container mx-auto py-2">
@@ -247,11 +256,9 @@ export default function DashboardPage() {
                 description="Personalizar preferencias de la aplicación y consorcio."
                 allowedRoles={[UserRole.ADMIN]} 
             />
-            {/* Add other nav cards as needed, e.g., for a dedicated consortium settings page for admins */}
-            {/* For example, a direct link to organization settings if it's separate from general app settings */}
             {isAdmin && (
                  <NavCard
-                    href="/subscribe" // Example: Link to manage subscription or org details
+                    href="/subscribe"
                     icon={Building}
                     title="Mi Organización"
                     description="Ver detalles de su plan y organización."
@@ -262,7 +269,7 @@ export default function DashboardPage() {
         </>
       )}
       
-      {(isAdmin || isSecretary) && stats.chartData.length > 0 && (
+      {(isAdmin || isSecretary) && stats.chartData && stats.chartData.length > 0 && (
         <Card className="shadow-md mb-6 mt-8">
           <CardHeader>
             <CardTitle>Casos por Materia (Organización)</CardTitle>

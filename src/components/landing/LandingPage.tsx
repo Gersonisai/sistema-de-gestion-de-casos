@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { CheckCircle, BarChart3, BellRing, ShieldCheck, Users, MessageSquareHeart } from "lucide-react";
+import { CheckCircle, BarChart3, BellRing, ShieldCheck, Users, MessageSquareHeart, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 const FeatureCard = ({ icon, title, description }: { icon: React.ElementType, title: string, description: string }) => {
@@ -36,19 +36,20 @@ export function LandingPage() {
 
       <main className="container mx-auto flex flex-col items-center text-center mt-20 lg:mt-24">
         <h2 className="text-4xl lg:text-5xl font-extrabold tracking-tight text-foreground mb-6">
-          La Gestión Legal Inteligente que <span className="text-primary">Transforma</span> su Práctica
+          El Marketplace Legal que <span className="text-primary">Conecta</span> Clientes y Abogados
         </h2>
         <p className="text-lg lg:text-xl text-muted-foreground max-w-3xl mb-10">
-          YASI K'ARI optimiza su flujo de trabajo con gestión de casos eficiente, recordatorios automáticos y notificaciones impulsadas por IA. Concéntrese en sus clientes, nosotros nos encargamos del resto.
+          ¿Necesita ayuda legal? Describa su caso y nuestra IA le encontrará el abogado ideal. ¿Es un profesional del derecho? Únase a nuestra red para acceder a nuevos clientes y gestionar sus casos eficientemente.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 mb-12">
           <Button 
             size="lg" 
             className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg px-8 py-6 text-lg"
-            onClick={() => router.push('/verify-identity')}
+            onClick={() => router.push('/register-client')}
           >
-            Iniciar Prueba Gratuita (30 Días)
+            <UserPlus className="mr-2 h-5 w-5" />
+            Soy un Cliente y Busco Abogado
           </Button>
           <Button 
             variant="outline" 
@@ -56,7 +57,8 @@ export function LandingPage() {
             className="px-8 py-6 text-lg border-primary text-primary hover:bg-primary/10"
             onClick={() => router.push('/subscribe')}
           >
-            Ver Planes de Suscripción
+             <ShieldCheck className="mr-2 h-5 w-5" />
+            Soy Abogado o Bufete
           </Button>
         </div>
 
@@ -65,33 +67,33 @@ export function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <FeatureCard 
               icon={BarChart3} 
-              title="Visión Integral de Casos"
-              description="Organice y acceda a todos los detalles de sus casos, desde NUREJ hasta la próxima actividad, todo en un solo lugar."
-            />
-            <FeatureCard 
-              icon={BellRing}
-              title="Recordatorios Inteligentes"
-              description="Nunca más olvide una fecha límite. Programe recordatorios y reciba notificaciones proactivas para estar siempre al tanto."
-            />
-            <FeatureCard 
-              icon={MessageSquareHeart}
-              title="Notificaciones con IA"
-              description="Nuestra IA genera notificaciones claras y concisas, ayudándole a priorizar y actuar eficientemente."
+              title="Matching Inteligente"
+              description="Nuestra IA analiza su problema para conectarlo con el abogado más adecuado según especialidad y ubicación."
             />
             <FeatureCard 
               icon={Users}
-              title="Colaboración Eficaz"
-              description="Diseñado para administradores y abogados, facilitando la asignación de casos y la supervisión del progreso."
+              title="Perfiles Verificados"
+              description="Acceda a una red de profesionales del derecho con perfiles detallados, especialidades y rangos de tarifas."
             />
              <FeatureCard 
-              icon={ShieldCheck}
-              title="Verificación Segura"
-              description="Proceso de verificación para pruebas gratuitas, asegurando un entorno confiable para todos los usuarios."
+              icon={CheckCircle}
+              title="Gestión de Casos Potente"
+              description="Los abogados suscritos obtienen herramientas de primer nivel para gestionar sus casos, recordatorios y documentos."
             />
             <FeatureCard 
-              icon={CheckCircle}
-              title="Multiplataforma y PWA"
-              description="Acceda desde la web o instale la aplicación en su dispositivo para una experiencia optimizada y sin distracciones."
+              icon={MessageSquareHeart}
+              title="Comunicación Directa"
+              description="Una vez asignado, gestione la comunicación y el progreso de su caso directamente en la plataforma."
+            />
+            <FeatureCard 
+              icon={BellRing}
+              title="Recordatorios y Alertas"
+              description="Tanto clientes como abogados se mantienen informados sobre las próximas actividades y plazos importantes."
+            />
+            <FeatureCard 
+              icon={ShieldCheck}
+              title="Seguro y Confiable"
+              description="Su información está protegida. Los datos de los clientes solo se comparten con el profesional elegido."
             />
           </div>
         </div>

@@ -27,7 +27,8 @@ interface AuthContextType {
   logout: () => void;
   isAdmin: boolean;
   isLawyer: boolean;
-  isSecretary: boolean; // New property
+  isSecretary: boolean;
+  isClient: boolean;
   registerOrganizationAdmin: (
     organizationName: string,
     adminName: string,
@@ -62,7 +63,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (appUserProfile) {
           appUserProfile.name = fbUser.displayName || appUserProfile.name;
           appUserProfile.email = fbUser.email!;
-          // Ensure organizationId is correctly assigned if user is part of an org
           if (!appUserProfile.organizationId && fbUser.uid === "Uh8GnPZnGkNVpEqXwsPJJtTc8R63") { // Hardcoded System Admin
              appUserProfile.organizationId = "org_default_admin";
           }
@@ -73,8 +73,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             id: fbUser.uid,
             email: fbUser.email!,
             name: fbUser.displayName || "Usuario YASI K'ARI",
-            role: UserRole.LAWYER, // Default new registrations to Lawyer if not specified or matched
-            // organizationId might be undefined here, should be set during specific registration flows.
+            role: UserRole.CLIENT, // Default new registrations to Client
           };
           setCurrentUser(fallbackProfile);
           if (!mockUsers.some(mu => mu.id === fbUser.uid)) {
@@ -211,6 +210,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isAdmin = currentUser?.role === UserRole.ADMIN;
   const isLawyer = currentUser?.role === UserRole.LAWYER;
   const isSecretary = currentUser?.role === UserRole.SECRETARY;
+  const isClient = currentUser?.role === UserRole.CLIENT;
 
   return (
     <AuthContext.Provider
@@ -224,7 +224,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         logout,
         isAdmin,
         isLawyer,
-        isSecretary, // New property
+        isSecretary,
+        isClient,
         registerOrganizationAdmin,
       }}
     >

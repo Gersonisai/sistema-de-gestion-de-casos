@@ -18,7 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Loader2, LogIn, UserPlus, KeySquare } from "lucide-react"; // Added KeySquare here
+import { Loader2, LogIn, UserPlus, KeySquare, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
@@ -29,7 +29,7 @@ const formSchema = z.object({
 });
 
 export function LoginForm() {
-  const { login } = useAuth();
+  const { login, currentUser } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -50,9 +50,10 @@ export function LoginForm() {
     setIsLoading(false);
     if (success) {
       toast({ title: "Inicio de Sesión Exitoso", description: "Bienvenido a YASI K'ARI." });
+      // El useEffect en el layout se encargará de la redirección al dashboard
       router.push("/dashboard");
     } else {
-      const firebaseErrorMsg = "Email o contraseña incorrectos, o la cuenta no existe en Firebase. Verifique sus credenciales o regístrese si es un nuevo administrador de consorcio. Las cuentas de abogado son creadas por un administrador o mediante invitación.";
+      const firebaseErrorMsg = "Email o contraseña incorrectos, o la cuenta no existe. Verifique sus credenciales.";
       setErrorMessage(firebaseErrorMsg);
       toast({
         variant: "destructive",
@@ -68,7 +69,7 @@ export function LoginForm() {
       <CardHeader className="text-center">
         <CardTitle className="text-3xl font-bold text-primary mt-4">YASI K'ARI</CardTitle>
         <CardDescription>
-          Ingrese sus credenciales para acceder al sistema.
+          Ingrese a su cuenta o regístrese.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -116,27 +117,33 @@ export function LoginForm() {
          <Separator className="my-6" />
          <div className="space-y-4 text-center">
             <div>
-                <p className="text-sm text-muted-foreground mb-1">¿Nuevo en YASI K'ARI?</p>
-                <Button variant="outline" className="w-full" asChild>
-                    <Link href="/subscribe">
+                <p className="text-sm text-muted-foreground mb-2">¿Es un cliente buscando ayuda legal?</p>
+                <Button variant="default" className="w-full" asChild>
+                    <Link href="/register-client">
                         <UserPlus className="mr-2 h-4 w-4" />
-                        Ver Planes o Iniciar Prueba Gratuita
+                        Regístrese Gratis como Cliente
                     </Link>
                 </Button>
             </div>
             <div>
-                <p className="text-sm text-muted-foreground mb-1">¿Tiene un código de invitación?</p>
+                <p className="text-sm text-muted-foreground mb-2">¿Es un profesional o bufete legal?</p>
+                 <Button variant="outline" className="w-full" asChild>
+                    <Link href="/subscribe">
+                        <Shield className="mr-2 h-4 w-4" />
+                        Crear Consorcio o Iniciar Prueba
+                    </Link>
+                </Button>
+            </div>
+            <div>
+                <p className="text-sm text-muted-foreground mb-2">¿Recibió un código de invitación?</p>
                  <Button variant="secondary" className="w-full" asChild>
                     <Link href="/register-invited">
                         <KeySquare className="mr-2 h-4 w-4" />
-                        Unirse con Código de Invitación
+                        Unirse a un Consorcio
                     </Link>
                 </Button>
             </div>
          </div>
-        <div className="mt-6 text-center text-xs text-muted-foreground">
-           Las cuentas de abogado son creadas por el administrador de su consorcio o mediante un código de invitación.
-        </div>
       </CardContent>
     </Card>
   );
