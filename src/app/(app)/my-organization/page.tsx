@@ -14,6 +14,7 @@ import { Loader2, Building, Users, HardDrive, AlertTriangle, BadgeCent, ArrowRig
 import type { Organization } from "@/lib/types";
 import { UserRole, PLAN_LIMITS } from "@/lib/types";
 import { THEME_PALETTES } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
 
 
 function formatBytes(bytes: number, decimals = 2) {
@@ -177,5 +178,3 @@ export default function MyOrganizationPage() {
     </div>
   );
 }
-
-    
