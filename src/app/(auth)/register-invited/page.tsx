@@ -89,16 +89,16 @@ export default function RegisterInvitedPage() {
         return;
     }
 
-    // Check lawyer limit for the organization
-    const currentLawyersCount = mockUsers.filter(u => u.organizationId === targetOrganization.id && u.role === UserRole.LAWYER).length;
+    // Check team member limit for the organization
+    const currentTeamMembersCount = mockUsers.filter(u => u.organizationId === targetOrganization.id && (u.role === UserRole.LAWYER || u.role === UserRole.SECRETARY)).length;
     const planLimits = PLAN_LIMITS[targetOrganization.plan] || PLAN_LIMITS.trial_basic;
 
-    if (currentLawyersCount >= planLimits.maxLawyers) {
-      setErrorMessage(`La organización "${targetOrganization.name}" ha alcanzado el límite de ${planLimits.maxLawyers} abogados para su plan "${targetOrganization.plan}".`);
+    if (currentTeamMembersCount >= planLimits.maxTeamMembers) {
+      setErrorMessage(`La organización "${targetOrganization.name}" ha alcanzado el límite de ${planLimits.maxTeamMembers} miembros para su plan "${targetOrganization.plan}".`);
       toast({
         variant: "destructive",
         title: "Límite de Usuarios Alcanzado",
-        description: `La organización asociada a este código ha alcanzado su límite de abogados. Contacte al administrador.`,
+        description: `La organización asociada a este código ha alcanzado su límite de miembros. Contacte al administrador.`,
         duration: 7000,
       });
       setIsLoading(false);
@@ -109,7 +109,7 @@ export default function RegisterInvitedPage() {
       values.name,
       values.email,
       values.password,
-      UserRole.LAWYER, // Invited users are always lawyers
+      UserRole.LAWYER, // Invited users default to lawyer, could be selectable
       targetOrganization.id // Associate with the "validated" organization
     );
     setIsLoading(false);
@@ -244,3 +244,5 @@ export default function RegisterInvitedPage() {
     </main>
   );
 }
+
+    

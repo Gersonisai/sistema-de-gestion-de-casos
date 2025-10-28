@@ -126,6 +126,7 @@ export function UserForm({ initialData, onSave, isEditMode }: UserFormProps) {
             }
         }
         router.push("/users");
+        router.refresh(); // Refresh to ensure data is updated across components
       } else {
         let specificError = `Ocurrió un error al ${isEditMode ? 'actualizar' : 'crear'} el usuario.`;
         if (result.error?.code === "auth/email-already-in-use" && !isEditMode) {
@@ -268,3 +269,5 @@ export function UserForm({ initialData, onSave, isEditMode }: UserFormProps) {
     </Card>
   );
 }
+
+    

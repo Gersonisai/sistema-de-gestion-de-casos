@@ -109,14 +109,13 @@ export default function UsersPage() {
     }
 
     const currentTeamCount = mockUsers.filter(u => u.organizationId === adminOrg.id && (u.role === UserRole.LAWYER || u.role === UserRole.SECRETARY)).length;
-    // Assuming PLAN_LIMITS.maxLawyers also covers secretaries for simplicity, or create a new limit
     const planLimits = PLAN_LIMITS[adminOrg.plan] || PLAN_LIMITS.trial_basic; 
 
-    if (currentTeamCount >= planLimits.maxLawyers) { // Using maxLawyers for total team members for now
+    if (currentTeamCount >= planLimits.maxTeamMembers) { 
       toast({
         variant: "destructive",
         title: "Límite de Miembros del Equipo Alcanzado",
-        description: `Su plan "${adminOrg.plan}" permite un máximo de ${planLimits.maxLawyers} abogados/secretarias. Ya ha alcanzado este límite.`,
+        description: `Su plan "${adminOrg.plan}" permite un máximo de ${planLimits.maxTeamMembers} miembros. Ya ha alcanzado este límite.`,
       });
       return;
     }
@@ -305,3 +304,5 @@ export default function UsersPage() {
     </div>
   );
 }
+
+    

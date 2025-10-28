@@ -1,5 +1,4 @@
 
-
 export enum UserRole {
   ADMIN = "admin", // Admin of an organization/consorcio
   LAWYER = "lawyer",
@@ -125,3 +124,5 @@ export const THEME_PALETTES = [
 ] as const;
 
 export type ThemePaletteId = typeof THEME_PALETTES[number]['id'];
+
+    

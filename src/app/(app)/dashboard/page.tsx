@@ -258,7 +258,7 @@ export default function DashboardPage() {
             />
             {isAdmin && (
                  <NavCard
-                    href="/subscribe"
+                    href="/my-organization"
                     icon={Building}
                     title="Mi Organización"
                     description="Ver detalles de su plan y organización."
@@ -354,3 +354,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
