@@ -10,6 +10,7 @@ import {
   Landmark, 
   Settings as SettingsIcon,
   MessageSquare,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -96,6 +97,14 @@ export function Header() {
                   <Link href="/settings">
                     <SettingsIcon className="mr-2 h-4 w-4" />
                     Configuración
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              {isClient && (
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard">
+                    <Search className="mr-2 h-4 w-4" />
+                    Buscar Abogados
                   </Link>
                 </DropdownMenuItem>
               )}
