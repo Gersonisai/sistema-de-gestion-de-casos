@@ -11,8 +11,8 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { mockUsers } from '@/data/mockData';
-import type { User as AppUser, CaseSubject } from '@/lib/types';
-import { UserRole, CASE_SUBJECTS_OPTIONS } from '@/lib/types';
+import type { User as AppUser } from '@/lib/types';
+import { UserRole, CaseSubject, CASE_SUBJECTS_OPTIONS } from '@/lib/types';
 
 const MatchLawyerInputSchema = z.object({
   problemDescription: z.string().describe('La descripción del problema legal del cliente.'),
