@@ -137,7 +137,7 @@ export function ClientDashboard() {
               </div>
               <div>
                 <Label htmlFor="location">Ubicación (Ciudad o País)</Label>
-                <Input id="location" placeholder="Ej: Lima, Perú" value={searchLocation} onChange={e => setSearchLocation(e.target.value)} />
+                <Input id="location" placeholder="Ej: La Santísima Trinidad, Bolivia" value={searchLocation} onChange={e => setSearchLocation(e.target.value)} />
               </div>
             </div>
             <div>
@@ -179,3 +179,5 @@ export function ClientDashboard() {
     </div>
   );
 }
+
+    
