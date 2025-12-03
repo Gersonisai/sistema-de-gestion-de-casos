@@ -32,17 +32,9 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    shortcut: "/icons/favicon.ico",
-    apple: [
-      { url: "/icons/icon-152x152.png", sizes: "152x152" },
-      { url: "/icons/icon-180x180.png", sizes: "180x180" },
-      { url: "/icons/icon-167x167.png", sizes: "167x167" },
-      { url: "/icons/icon-192x192.png", sizes: "192x192" }, // Often used by Android too
-    ],
-    other: [ // Simplified to essential favicons, PWA icons are in manifest.json
-       { rel: 'icon', type: 'image/png', sizes: '32x32', url: '/icons/favicon-32x32.png' },
-       { rel: 'icon', type: 'image/png', sizes: '16x16', url: '/icons/favicon-16x16.png' },
-    ]
+    icon: "/icons/logo.svg",
+    shortcut: "/icons/logo.svg",
+    apple: "/icons/logo.svg",
   },
   other: { // Moved meta tags here
     'msapplication-TileColor': '#3F51B5',
