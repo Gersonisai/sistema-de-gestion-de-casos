@@ -1,46 +1,53 @@
-
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from "@/hooks/useAuth";
 import type { User, Case, ChatMessage } from "@/lib/types";
-import { mockUsers, mockMessages, mockCases } from "@/data/mockData";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Send, Phone, Video, Users, User as UserIcon, ArrowLeft } from "lucide-react";
+import { Loader2, Send, Phone, Video, Users, User as UserIcon, ArrowLeft, MessageSquare } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { useCollection, useCollectionGroup } from "@/hooks/use-firestore";
+import { db } from "@/lib/firebase";
+import { collection, query, where, addDoc, serverTimestamp, or, orderBy, limit } from "firebase/firestore";
 
 // Helper to generate a consistent conversation ID for 1-on-1 chats
 const getOneOnOneId = (userId1: string, userId2: string) => {
   return [userId1, userId2].sort().join('_');
 };
 
-export default function ChatPage() {
+
+function ChatPageContent() {
     const { currentUser, isLoading: authIsLoading } = useAuth();
     const searchParams = useSearchParams();
     const scrollAreaRef = useRef<HTMLDivElement>(null);
+    const router = useRouter(); // if you need to navigate
 
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [newMessage, setNewMessage] = useState("");
-    const [allMessages, setAllMessages] = useState<ChatMessage[]>(mockMessages);
     const [isMobileConvoView, setIsMobileConvoView] = useState(false);
 
+    // Fetch all users and cases relevant to the current user
+    const { data: allUsers, isLoading: usersLoading } = useCollection<User>(collection(db, "users"));
+    const { data: allCases, isLoading: casesLoading } = useCollection<Case>(
+        currentUser ? query(collection(db, "cases"), where("organizationId", "==", currentUser.organizationId)) : null
+    );
 
     const conversations = useMemo(() => {
-        if (!currentUser) return [];
+        if (!currentUser || !allUsers) return [];
 
         const convos: { id: string; name: string; avatarUrl?: string; type: 'group' | 'dm' }[] = [];
         
         // 1. Add organization group chat
         if (currentUser.organizationId) {
             convos.push({
-                id: currentUser.organizationId,
+                id: `group_${currentUser.organizationId}`,
                 name: "Bufete (General)",
                 avatarUrl: "https://placehold.co/100x100/86B6F6/FFFFFF?text=BG",
                 type: 'group',
@@ -49,7 +56,7 @@ export default function ChatPage() {
         
         // 2. Add DMs with team members
         if (currentUser.organizationId) {
-            mockUsers
+            allUsers
                 .filter(u => u.organizationId === currentUser.organizationId && u.id !== currentUser.id)
                 .forEach(u => {
                     convos.push({
@@ -63,16 +70,16 @@ export default function ChatPage() {
 
         // 3. Add DMs with assigned clients (for lawyers) or assigned lawyer (for clients)
         let relevantCases: Case[] = [];
-        if(currentUser.role === 'lawyer') {
-            relevantCases = mockCases.filter(c => c.assignedLawyerId === currentUser.id);
+        if (currentUser.role === 'lawyer') {
+            relevantCases = allCases?.filter(c => c.assignedLawyerId === currentUser.id) || [];
         } else if (currentUser.role === 'client') {
-            relevantCases = mockCases.filter(c => c.clientId === currentUser.id);
+            relevantCases = allCases?.filter(c => c.clientId === currentUser.id) || [];
         }
 
         relevantCases.forEach(c => {
             const otherPartyId = currentUser.role === 'lawyer' ? c.clientId : c.assignedLawyerId;
             if (otherPartyId) {
-                const otherUser = mockUsers.find(u => u.id === otherPartyId);
+                const otherUser = allUsers.find(u => u.id === otherPartyId);
                 if (otherUser && !convos.some(convo => convo.id === getOneOnOneId(currentUser.id, otherUser.id))) {
                      convos.push({
                         id: getOneOnOneId(currentUser.id, otherUser.id),
@@ -84,64 +91,59 @@ export default function ChatPage() {
             }
         });
 
-
-        // De-duplicate conversations
         const uniqueConvos = Array.from(new Map(convos.map(item => [item.id, item])).values());
-        
         return uniqueConvos;
-
-    }, [currentUser]);
+    }, [currentUser, allUsers, allCases]);
 
 
     useEffect(() => {
-        // Set initial conversation
-        const requestedConvId = searchParams.get('conversationId');
-        if (requestedConvId && currentUser) {
-            const directId = getOneOnOneId(currentUser.id, requestedConvId);
-            const exists = conversations.find(c => c.id === directId || c.id === requestedConvId);
-            if (exists) {
-                setActiveConversationId(exists.id);
-                setIsMobileConvoView(true); // Auto-open conversation on mobile if one is requested in URL
+        const requestedUserId = searchParams.get('conversationWith');
+        if (requestedUserId && currentUser) {
+            const oneOnOneId = getOneOnOneId(currentUser.id, requestedUserId);
+            if (conversations.some(c => c.id === oneOnOneId)) {
+                setActiveConversationId(oneOnOneId);
+                setIsMobileConvoView(true);
             }
         } else if (conversations.length > 0 && !activeConversationId) {
             setActiveConversationId(conversations[0].id);
         }
     }, [searchParams, conversations, currentUser, activeConversationId]);
     
+
+    const messagesQuery = useMemo(() => {
+        if (!activeConversationId) return null;
+        return query(collection(db, 'messages'), where('conversationId', '==', activeConversationId), orderBy('timestamp', 'asc'));
+    }, [activeConversationId]);
+    const { data: activeConversationMessages, isLoading: messagesLoading } = useCollection<ChatMessage>(messagesQuery);
+    
     // Scroll to bottom when messages change
     useEffect(() => {
         if(scrollAreaRef.current) {
             scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
         }
-    }, [allMessages, activeConversationId]);
+    }, [activeConversationMessages, activeConversationId]);
 
 
-    const activeConversationMessages = useMemo(() => {
-        return allMessages.filter(m => m.conversationId === activeConversationId).sort((a,b) => parseISO(a.timestamp).getTime() - parseISO(b.timestamp).getTime());
-    }, [activeConversationId, allMessages]);
-    
     const activeConversationDetails = useMemo(() => {
         return conversations.find(c => c.id === activeConversationId);
     }, [activeConversationId, conversations]);
 
-    const handleSendMessage = (e: React.FormEvent) => {
+    const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim() || !currentUser || !activeConversationId) return;
 
-        const newMsg: ChatMessage = {
-            id: `msg-${Date.now()}`,
+        await addDoc(collection(db, 'messages'), {
             conversationId: activeConversationId,
             senderId: currentUser.id,
             senderName: currentUser.name,
             content: newMessage.trim(),
-            timestamp: new Date().toISOString(),
-        };
+            timestamp: serverTimestamp(),
+        });
 
-        setAllMessages(prev => [...prev, newMsg]);
         setNewMessage("");
     };
 
-    if (authIsLoading) {
+    if (authIsLoading || usersLoading || casesLoading) {
         return <div className="flex h-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
     }
     
@@ -151,7 +153,7 @@ export default function ChatPage() {
     };
 
     return (
-        <div className="h-full flex flex-col">
+        <div className="h-full flex flex-col p-4">
             <Card className="flex-1 grid md:grid-cols-[300px_1fr] h-full overflow-hidden">
                 {/* Conversations Sidebar */}
                 <div className={cn(
@@ -219,7 +221,8 @@ export default function ChatPage() {
                             {/* Messages */}
                             <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
                                 <div className="space-y-4">
-                                    {activeConversationMessages.map(msg => (
+                                    {messagesLoading && <Loader2 className="mx-auto my-4 animate-spin h-6 w-6" />}
+                                    {activeConversationMessages && activeConversationMessages.map(msg => (
                                         <div
                                             key={msg.id}
                                             className={cn(
@@ -236,7 +239,7 @@ export default function ChatPage() {
                                                 <p className="font-bold text-sm mb-1">{msg.senderId === currentUser?.id ? "Tú" : msg.senderName}</p>
                                                 <p className="text-base break-words">{msg.content}</p>
                                                 <p className="text-xs opacity-75 mt-2 text-right">
-                                                    {format(parseISO(msg.timestamp), 'p', { locale: es })}
+                                                    {msg.timestamp && format(typeof msg.timestamp === 'string' ? parseISO(msg.timestamp) : msg.timestamp.toDate(), 'p', { locale: es })}
                                                 </p>
                                             </div>
                                         </div>
@@ -261,12 +264,28 @@ export default function ChatPage() {
                         </>
                     ) : (
                         <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                            <MessageSquare className="h-16 w-16 mb-4" />
-                            <p className="text-center">Seleccione una conversación para empezar a chatear.</p>
+                             { (usersLoading || casesLoading) ? 
+                                <Loader2 className="animate-spin h-8 w-8" /> :
+                                <>
+                                    <MessageSquare className="h-16 w-16 mb-4" />
+                                    <p className="text-center">Seleccione una conversación para empezar a chatear.</p>
+                                </>
+                            }
                         </div>
                     )}
                 </div>
             </Card>
         </div>
+    );
+}
+
+// Need to import useRouter if it's used inside the content component
+import { useRouter } from "next/navigation";
+
+export default function ChatPage() {
+    return (
+        <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>}>
+            <ChatPageContent />
+        </Suspense>
     );
 }

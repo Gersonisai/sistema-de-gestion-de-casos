@@ -1,4 +1,3 @@
-
 "use client";
 
 import { CaseForm } from "@/components/cases/CaseForm";
@@ -6,11 +5,13 @@ import type { CaseFormValues } from "@/components/cases/CaseForm";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { mockCases, mockUsers } from "@/data/mockData"; 
-import type { Case, FileAttachment } from "@/lib/types"; // Added FileAttachment
+import { useEffect, useState, useMemo } from "react";
+import type { Case, User, FileAttachment } from "@/lib/types";
 import { UserRole } from "@/lib/types";
 import { Loader2 } from "lucide-react";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useCollection } from "@/hooks/use-firestore";
 
 export default function NewCasePage() {
   const { isAdmin, isLawyer, isSecretary, isLoading: authIsLoading, currentUser } = useAuth();
@@ -19,7 +20,6 @@ export default function NewCasePage() {
 
   useEffect(() => {
     if (!authIsLoading) {
-      // Allow if admin, lawyer, OR secretary
       if (!isAdmin && !isLawyer && !isSecretary) {
         router.replace("/dashboard"); 
       } else {
@@ -28,30 +28,28 @@ export default function NewCasePage() {
     }
   }, [isAdmin, isLawyer, isSecretary, authIsLoading, router]);
 
+  const { data: users, isLoading: usersIsLoading } = useCollection<User>(collection(db, "users"));
 
   const handleSaveCase = async (data: CaseFormValues & { reminders: Case['reminders'], fileAttachments: FileAttachment[] }) => {
     if (!currentUser?.organizationId) {
       console.error("No organization ID found for current user.");
-      // Potentially show a toast message to the user
       return;
     }
     
-    const newCase: Case = {
-      id: `case-${Date.now()}`,
-      ...data,
-      organizationId: currentUser.organizationId, // Associate with current user's organization
-      lastActivityDate: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      // Ensure reminders and fileAttachments are correctly passed
-      reminders: data.reminders || [],
-      fileAttachments: data.fileAttachments || [],
-    };
-    mockCases.push(newCase); 
-    console.log("New case data:", newCase);
+    await addDoc(collection(db, "cases"), {
+        ...data,
+        organizationId: currentUser.organizationId,
+        lastActivityDate: serverTimestamp(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        reminders: data.reminders || [],
+        fileAttachments: data.fileAttachments || [],
+    });
+
+    router.push("/dashboard");
   };
   
-  if (authIsLoading || isClientLoading) {
+  if (authIsLoading || isClientLoading || usersIsLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -60,7 +58,7 @@ export default function NewCasePage() {
   }
   
   const lawyersInOrg = currentUser?.organizationId 
-    ? mockUsers.filter(u => u.organizationId === currentUser.organizationId && u.role === UserRole.LAWYER)
+    ? users?.filter(u => u.organizationId === currentUser.organizationId && u.role === UserRole.LAWYER)
     : [];
 
   return (

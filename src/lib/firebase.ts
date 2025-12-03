@@ -1,29 +1,22 @@
-
-// Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getAnalytics } from "firebase/analytics"; // Included as per user's provided config
+import { getFirestore } from "firebase/firestore";
+// import { getAnalytics } from "firebase/analytics"; 
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDR62eEABEZ0U36W1FCQXR0fbUklQR6u7k",
   authDomain: "yasi-k-ari.firebaseapp.com",
   projectId: "yasi-k-ari",
-  storageBucket: "yasi-k-ari.firebasestorage.app", // Using .firebasestorage.app as provided
+  storageBucket: "yasi-k-ari.appspot.com",
   messagingSenderId: "620029138709",
   appId: "1:620029138709:web:7f20737faaee1e1ba3bb1c",
   measurementId: "G-4EEQWQLZYR"
 };
 
 // Initialize Firebase
-let app;
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApp();
-}
-
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
-// const analytics = getAnalytics(app); // You can uncomment this if you plan to use Firebase Analytics and have configured it.
+const db = getFirestore(app);
+// const analytics = getAnalytics(app);
 
-export { app, auth };
+export { app, auth, db };

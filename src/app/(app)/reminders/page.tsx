@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
@@ -9,15 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CalendarCheck, Loader2, AlertTriangle, ExternalLink, UserSquare, CalendarPlus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { mockCases, mockUsers } from "@/data/mockData";
-import type { Reminder, Case } from "@/lib/types"; 
+import type { Reminder, Case, User } from "@/lib/types"; 
 import { UserRole } from "@/lib/types";
 import { format, parseISO, isToday, isFuture } from "date-fns";
 import { es } from "date-fns/locale/es";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GlobalReminderForm } from "@/components/reminders/GlobalReminderForm";
 import { useToast } from "@/hooks/use-toast";
-
+import { useCollection } from "@/hooks/use-firestore";
+import { db } from "@/lib/firebase";
+import { collection, query, where, doc, updateDoc, arrayUnion } from "firebase/firestore";
 
 interface ExtendedReminder extends Reminder {
   caseId: string;
@@ -29,39 +29,33 @@ interface ExtendedReminder extends Reminder {
 export default function RemindersPage() {
   const { currentUser, isAdmin, isLawyer, isSecretary, isLoading: authIsLoading } = useAuth();
   const [allUserReminders, setAllUserReminders] = useState<ExtendedReminder[]>([]);
-  const [isLoadingReminders, setIsLoadingReminders] = useState(true);
   const [showAddReminderDialog, setShowAddReminderDialog] = useState(false);
-  const [selectableCases, setSelectableCases] = useState<Case[]>([]);
   const { toast } = useToast();
 
-
-  const fetchAndSetReminders = useCallback(() => {
-    if (!currentUser || !currentUser.organizationId) {
-      setIsLoadingReminders(false);
-      setSelectableCases([]);
-      setAllUserReminders([]);
-      return;
+  const casesQuery = useMemo(() => {
+    if (!currentUser || !currentUser.organizationId) return null;
+    let q = query(collection(db, 'cases'), where('organizationId', '==', currentUser.organizationId));
+    if (isLawyer) {
+        q = query(q, where('assignedLawyerId', '==', currentUser.id));
     }
+    return q;
+  }, [currentUser, isLawyer]);
 
-    setIsLoadingReminders(true);
+  const { data: cases, isLoading: casesLoading } = useCollection<Case>(casesQuery);
+  const { data: users, isLoading: usersLoading } = useCollection<User>(
+      currentUser?.organizationId ? query(collection(db, 'users'), where('organizationId', '==', currentUser.organizationId)) : null
+  );
 
-    let relevantCases: Case[];
-    // Admins and Secretaries see all cases from their organization
-    if (isAdmin || isSecretary) {
-      relevantCases = mockCases.filter(c => c.organizationId === currentUser.organizationId);
-    } else if (isLawyer) { // Lawyers see only their assigned cases within their organization
-      relevantCases = mockCases.filter(c => c.organizationId === currentUser.organizationId && c.assignedLawyerId === currentUser.id);
-    } else {
-      relevantCases = [];
-    }
-    setSelectableCases(relevantCases);
+  useEffect(() => {
+    if (casesLoading || usersLoading || !cases || !users) return;
 
     const extractedReminders: ExtendedReminder[] = [];
-    relevantCases.forEach(c => {
+    cases.forEach(c => {
+      if (!c.reminders) return;
+      
       let lawyerName: string | undefined = undefined;
-      // Admin and Secretary can see who is assigned
       if ((isAdmin || isSecretary) && c.assignedLawyerId) {
-        const lawyer = mockUsers.find(u => u.id === c.assignedLawyerId && u.organizationId === currentUser.organizationId);
+        const lawyer = users.find(u => u.id === c.assignedLawyerId);
         lawyerName = lawyer?.name;
       }
 
@@ -77,40 +71,28 @@ export default function RemindersPage() {
     });
 
     extractedReminders.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
-    
     setAllUserReminders(extractedReminders);
-    setIsLoadingReminders(false);
-  }, [currentUser, isAdmin, isLawyer, isSecretary]);
 
-  useEffect(() => {
-    if (!authIsLoading) {
-      fetchAndSetReminders();
-    }
-  }, [authIsLoading, fetchAndSetReminders]);
+  }, [cases, users, casesLoading, usersLoading, isAdmin, isSecretary]);
 
-
-  const handleSaveNewGlobalReminder = (
+  const handleSaveNewGlobalReminder = async (
     reminderData: Omit<Reminder, "id" | "createdBy">,
     caseId: string
   ) => {
     if (!currentUser) return;
-
-    const targetCaseIndex = mockCases.findIndex(c => c.id === caseId && c.organizationId === currentUser.organizationId);
-    if (targetCaseIndex === -1) {
-      toast({ variant: "destructive", title: "Error", description: "Caso no encontrado en su organización." });
-      return;
-    }
-
+    
+    const caseRef = doc(db, "cases", caseId);
+    
     const newReminder: Reminder = {
       ...reminderData,
       id: `reminder-${Date.now()}`,
       createdBy: currentUser.id,
     };
 
-    mockCases[targetCaseIndex].reminders.push(newReminder);
-    mockCases[targetCaseIndex].updatedAt = new Date().toISOString(); 
+    await updateDoc(caseRef, {
+      reminders: arrayUnion(newReminder)
+    });
 
-    fetchAndSetReminders(); 
     setShowAddReminderDialog(false); 
     toast({ title: "Recordatorio Añadido", description: "El nuevo recordatorio ha sido añadido." });
   };
@@ -133,7 +115,7 @@ export default function RemindersPage() {
   }, [allUserReminders]);
 
 
-  if (authIsLoading || isLoadingReminders) {
+  if (authIsLoading || casesLoading || usersLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -268,9 +250,9 @@ export default function RemindersPage() {
           <DialogHeader>
             <DialogTitle>Añadir Nuevo Recordatorio</DialogTitle>
           </DialogHeader>
-          {selectableCases.length > 0 ? (
+          {cases && cases.length > 0 ? (
             <GlobalReminderForm
-              cases={selectableCases}
+              cases={cases}
               onSave={handleSaveNewGlobalReminder}
               onClose={() => setShowAddReminderDialog(false)}
             />

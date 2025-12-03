@@ -1,14 +1,12 @@
-
 "use client";
 
-import { useEffect, useState, Suspense, useMemo } from "react";
+import { useEffect, Suspense, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { CaseForm } from "@/components/cases/CaseForm";
 import type { CaseFormValues } from "@/components/cases/CaseForm";
 import { PageHeader } from "@/components/shared/PageHeader";
 import type { Case, User, FileAttachment } from "@/lib/types";
 import { UserRole } from "@/lib/types";
-import { mockCases, mockUsers } from "@/data/mockData"; 
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, AlertTriangle, Download, FileText, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +16,9 @@ import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-
+import { useDocument, useCollection } from "@/hooks/use-firestore";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc, deleteDoc, serverTimestamp, collection } from "firebase/firestore";
 
 function CaseDetailPageContent() {
   const routeParams = useParams();
@@ -27,71 +27,53 @@ function CaseDetailPageContent() {
   const { currentUser, isAdmin, isLawyer, isSecretary, isClient, isLoading: authIsLoading } = useAuth();
   const { toast } = useToast();
   
-  const [currentCase, setCurrentCase] = useState<Case | null | undefined>(undefined);
-  const [isEditing, setIsEditing] = useState(searchParams.get('edit') === 'true');
-
   const caseId: string | null = useMemo(() => {
     return typeof routeParams?.id === 'string' ? routeParams.id : null;
   }, [routeParams]);
 
+  const { data: currentCase, isLoading: caseIsLoading, error: caseError } = useDocument<Case>(caseId ? doc(db, "cases", caseId) : null);
+  const { data: users, isLoading: usersIsLoading } = useCollection<User>(collection(db, "users"));
+  
+  const isEditing = searchParams.get('edit') === 'true';
+
+  // Security check effect
   useEffect(() => {
-    if (!caseId) {
-      if (routeParams && !authIsLoading && currentCase === undefined) {
-         setCurrentCase(null);
-      }
-      return;
-    }
-    let foundCase = mockCases.find((c) => c.id === caseId);
+    if (caseIsLoading || authIsLoading || !currentUser || !currentCase) return;
 
-    // Security check
-    if (foundCase && currentUser) {
-        const isOrgMember = foundCase.organizationId === currentUser.organizationId;
-        const isAssignedLawyer = foundCase.assignedLawyerId === currentUser.id;
-        const isCaseClient = foundCase.clientId === currentUser.id;
+    const isOrgMember = currentCase.organizationId === currentUser.organizationId;
+    const isAssignedLawyer = currentCase.assignedLawyerId === currentUser.id;
+    const isCaseClient = currentCase.clientId === currentUser.id;
 
-        if (isClient && !isCaseClient) {
-            foundCase = undefined;
-        } else if (!isClient && !isOrgMember && currentUser.role !== UserRole.ADMIN) {
-            foundCase = undefined;
-        } else if (isLawyer && !isAssignedLawyer) {
-            foundCase = undefined;
-        }
-    } else if (!currentUser) {
-        foundCase = undefined;
+    let hasAccess = false;
+    if (isAdmin && isOrgMember) hasAccess = true;
+    else if (isSecretary && isOrgMember) hasAccess = true;
+    else if (isLawyer && isAssignedLawyer) hasAccess = true;
+    else if (isClient && isCaseClient) hasAccess = true;
+    
+    if (!hasAccess) {
+      toast({ variant: "destructive", title: "Acceso Denegado", description: "No tiene permiso para ver este caso."});
+      router.replace('/dashboard');
     }
 
-    setCurrentCase(foundCase || null);
-  }, [caseId, routeParams, authIsLoading, currentCase, currentUser, isClient, isLawyer]);
+  }, [currentCase, currentUser, caseIsLoading, authIsLoading, isAdmin, isLawyer, isSecretary, isClient, router, toast]);
 
-  useEffect(() => {
-    setIsEditing(searchParams.get('edit') === 'true');
-  }, [searchParams]);
-
-  const handleSaveCase = async (data: CaseFormValues & { reminders: Case['reminders'], fileAttachments: FileAttachment[], organizationId?: string }, caseToUpdate?: Case) => {
-    console.log("Updated case data:", data, "for case:", caseToUpdate?.id);
-    if (caseToUpdate) {
-        const caseIndex = mockCases.findIndex(c => c.id === caseToUpdate.id);
-        if (caseIndex !== -1) {
-            mockCases[caseIndex] = {
-                ...mockCases[caseIndex],
-                ...data,
-                updatedAt: new Date().toISOString(),
-                reminders: data.reminders || mockCases[caseIndex].reminders,
-                fileAttachments: data.fileAttachments || mockCases[caseIndex].fileAttachments,
-            };
-        }
-    }
-    setCurrentCase(prev => prev ? {...prev, ...data} : null); // Update local state for immediate UI reflection
-    setIsEditing(false);
+  const handleSaveCase = async (data: CaseFormValues & { reminders: Case['reminders'], fileAttachments: FileAttachment[] }, caseToUpdate?: Case) => {
+    if (!caseToUpdate?.id) return;
+    
+    const caseRef = doc(db, "cases", caseToUpdate.id);
+    await updateDoc(caseRef, {
+        ...data,
+        updatedAt: serverTimestamp(),
+    });
+    
+    toast({ title: "Caso Actualizado", description: `El caso para "${data.clientName}" ha sido actualizado.` });
     router.replace(`/cases/${caseId}`, undefined); // Remove ?edit=true from URL
   };
 
   const handleDeleteCase = async (id: string) => {
     if (!isAdmin) return;
-    const caseIndex = mockCases.findIndex(c => c.id === id);
-    if (caseIndex !== -1) {
-        mockCases.splice(caseIndex, 1);
-    }
+    await deleteDoc(doc(db, "cases", id));
+    toast({ title: "Caso Eliminado", description: "El caso ha sido eliminado exitosamente." });
     router.push('/dashboard');
   };
 
@@ -106,8 +88,9 @@ function CaseDetailPageContent() {
 
   const canEditThisCase = isAdmin || isSecretary || (isLawyer && currentCase?.assignedLawyerId === currentUser?.id);
   const canDeleteThisCase = isAdmin;
-  const assignedLawyer = useMemo(() => mockUsers.find(u => u.id === currentCase?.assignedLawyerId), [currentCase]);
-  const caseClient = useMemo(() => mockUsers.find(u => u.id === currentCase?.clientId), [currentCase]);
+  
+  const assignedLawyer = useMemo(() => users?.find(u => u.id === currentCase?.assignedLawyerId), [currentCase, users]);
+  const caseClient = useMemo(() => users?.find(u => u.id === currentCase?.clientId), [currentCase, users]);
 
   let chatPartnerId: string | undefined;
   if(isClient) chatPartnerId = assignedLawyer?.id;
@@ -115,11 +98,11 @@ function CaseDetailPageContent() {
   if(isAdmin || isSecretary) chatPartnerId = assignedLawyer?.id || caseClient?.id;
 
 
-  const lawyersInOrg = currentUser?.organizationId 
-    ? mockUsers.filter(u => u.organizationId === currentUser.organizationId && u.role === UserRole.LAWYER)
-    : [];
+  const lawyersInOrg = useMemo(() => currentUser?.organizationId 
+    ? users?.filter(u => u.organizationId === currentUser.organizationId && u.role === UserRole.LAWYER)
+    : [], [users, currentUser?.organizationId]);
 
-  if (authIsLoading || currentCase === undefined) {
+  if (authIsLoading || caseIsLoading || usersIsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-150px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -127,11 +110,11 @@ function CaseDetailPageContent() {
     );
   }
 
-  if (currentCase === null) {
+  if (caseError || !currentCase) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-150px)] text-center">
         <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
-        <h2 className="text-2xl font-semibold">Caso No Encontrado</h2>
+        <h2 className="text-2xl font-semibold">Caso No Encontrado o Sin Acceso</h2>
         <p className="text-muted-foreground mt-2">
           El caso que está buscando no existe, ha sido eliminado o no tiene permiso para verlo.
         </p>
@@ -159,7 +142,7 @@ function CaseDetailPageContent() {
     <div className="flex gap-2">
         {chatPartnerId && (
             <Button asChild variant="outline">
-                <Link href={`/chat?conversationId=${chatPartnerId}`}>
+                <Link href={`/chat?conversationWith=${chatPartnerId}`}>
                     <MessageSquare className="mr-2 h-4 w-4"/>
                     Chatear
                 </Link>
@@ -172,6 +155,13 @@ function CaseDetailPageContent() {
         )}
     </div>
   );
+  
+  const getTimestampDate = (timestamp: any): string => {
+    if (!timestamp) return 'N/A';
+    if (typeof timestamp === 'string') return timestamp;
+    if (timestamp.toDate) return timestamp.toDate().toISOString();
+    return new Date(timestamp.seconds * 1000).toISOString();
+  }
 
   return (
     <div className="container mx-auto py-8">
@@ -196,14 +186,14 @@ function CaseDetailPageContent() {
             <div><strong className="text-muted-foreground">Próxima Actividad:</strong><p>{currentCase.nextActivity}</p></div>
             {assignedLawyer && <div><strong className="text-muted-foreground">Abogado Asignado:</strong><p>{assignedLawyer.name}</p></div>}
             {caseClient && !isClient && <div><strong className="text-muted-foreground">Cliente:</strong><p>{caseClient.name} ({caseClient.email})</p></div>}
-            <div><strong className="text-muted-foreground">Última Actividad:</strong><p>{format(parseISO(currentCase.lastActivityDate), "PPPp", { locale: es })}</p></div>
-            <div><strong className="text-muted-foreground">Fecha de Creación:</strong><p>{format(parseISO(currentCase.createdAt), "PPPp", { locale: es })}</p></div>
+            <div><strong className="text-muted-foreground">Última Actividad:</strong><p>{format(parseISO(getTimestampDate(currentCase.lastActivityDate)), "PPPp", { locale: es })}</p></div>
+            <div><strong className="text-muted-foreground">Fecha de Creación:</strong><p>{format(parseISO(getTimestampDate(currentCase.createdAt)), "PPPp", { locale: es })}</p></div>
           </div>
 
           {!isClient && (
             <div className="pt-4 border-t" id="reminders">
                 <h3 className="text-lg font-semibold mb-2">Recordatorios</h3>
-                {currentCase.reminders.length > 0 ? (
+                {currentCase.reminders && currentCase.reminders.length > 0 ? (
                 <ul className="space-y-2">
                     {currentCase.reminders.map(r => (
                     <li key={r.id} className="p-3 border rounded-md bg-muted/50">
@@ -218,7 +208,7 @@ function CaseDetailPageContent() {
 
           <div className="pt-4 border-t" id="documents">
             <h3 className="text-lg font-semibold mb-2">Archivos Adjuntos</h3>
-            {currentCase.fileAttachments.length > 0 ? (
+            {currentCase.fileAttachments && currentCase.fileAttachments.length > 0 ? (
               <ul className="space-y-2">
                 {currentCase.fileAttachments.map(attachment => (
                   <li key={attachment.id} className="p-3 border rounded-md bg-muted/50 flex justify-between items-center hover:bg-muted/70 transition-colors">

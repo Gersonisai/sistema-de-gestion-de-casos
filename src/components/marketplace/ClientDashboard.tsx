@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,15 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Separator } from "@/components/ui/separator";
-import { Search, Bot, ArrowRight, Loader2, Sparkles, User, MapPin, BadgeDollarSign } from 'lucide-react';
+import { Search, Bot, Loader2, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import type { User as AppUser, CaseSubject } from '@/lib/types';
-import { CASE_SUBJECTS_OPTIONS } from '@/lib/types';
-import { mockUsers } from '@/data/mockData';
+import { UserRole, CASE_SUBJECTS_OPTIONS } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { matchLawyer, MatchLawyerOutput } from '@/ai/flows/match-lawyer-flow';
+import { matchLawyer, type MatchLawyerOutput } from '@/ai/flows/match-lawyer-flow';
 import { LawyerProfileCard } from './LawyerProfileCard';
+import { useCollection } from '@/hooks/use-firestore';
+import { db } from '@/lib/firebase';
+import { collection, query, where } from 'firebase/firestore';
 
 export function ClientDashboard() {
   const { currentUser } = useAuth();
@@ -26,7 +26,7 @@ export function ClientDashboard() {
   // State for AI Matching
   const [problemDescription, setProblemDescription] = useState('');
   const [isMatching, setIsMatching] = useState(false);
-  const [suggestedLawyers, setSuggestedLawyers] = useState<MatchLawyerOutput | null>(null);
+  const [aiResults, setAiResults] = useState<MatchLawyerOutput | null>(null);
 
   // State for Manual Search
   const [searchSpecialty, setSearchSpecialty] = useState<CaseSubject | 'ALL'>('ALL');
@@ -34,6 +34,11 @@ export function ClientDashboard() {
   const [searchBudget, setSearchBudget] = useState<string>('ALL');
   const [manualSearchResults, setManualSearchResults] = useState<AppUser[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+
+  // Fetch all lawyers from Firestore
+  const { data: allLawyers, isLoading: lawyersLoading } = useCollection<AppUser>(
+      query(collection(db, "users"), where("role", "==", UserRole.LAWYER))
+  );
   
   const handleAiMatch = async () => {
     if (!problemDescription.trim()) {
@@ -41,11 +46,13 @@ export function ClientDashboard() {
       return;
     }
     setIsMatching(true);
-    setSuggestedLawyers(null);
+    setAiResults(null);
     try {
-      // In a real app, you might also send currentUser.location
-      const results = await matchLawyer({ problemDescription });
-      setSuggestedLawyers(results);
+      const results = await matchLawyer({ 
+          problemDescription,
+          clientLocation: currentUser?.location 
+      });
+      setAiResults(results);
     } catch (error) {
       console.error("Error matching lawyer with AI:", error);
       toast({ variant: 'destructive', title: 'Error de IA', description: 'No se pudo procesar su solicitud. Intente de nuevo.' });
@@ -56,9 +63,12 @@ export function ClientDashboard() {
 
   const handleManualSearch = () => {
     setHasSearched(true);
-    const lawyers = mockUsers.filter(u => u.role === 'lawyer');
+    if (!allLawyers) {
+        setManualSearchResults([]);
+        return;
+    }
     
-    const results = lawyers.filter(lawyer => {
+    const results = allLawyers.filter(lawyer => {
       const specialtyMatch = searchSpecialty === 'ALL' || lawyer.specialties?.includes(searchSpecialty);
       const locationMatch = !searchLocation || lawyer.location?.toLowerCase().includes(searchLocation.toLowerCase());
       const budgetMatch = searchBudget === 'ALL' || (lawyer.hourlyRateRange && lawyer.hourlyRateRange[0] <= parseInt(searchBudget));
@@ -91,19 +101,23 @@ export function ClientDashboard() {
               onChange={(e) => setProblemDescription(e.target.value)}
               rows={6}
             />
-            <Button onClick={handleAiMatch} disabled={isMatching} className="w-full">
+            <Button onClick={handleAiMatch} disabled={isMatching || lawyersLoading} className="w-full">
               {isMatching ? <Loader2 className="animate-spin mr-2" /> : <Bot className="mr-2" />}
               {isMatching ? 'Analizando y Buscando...' : 'Encontrar Abogado con IA'}
             </Button>
-            {suggestedLawyers && (
+            {aiResults && (
               <div className="pt-4 space-y-2">
                 <h3 className="font-semibold text-lg">Resultados del Análisis de IA:</h3>
-                <p><span className='font-medium'>Materia Identificada:</span> {suggestedLawyers.identifiedSubject}</p>
+                <p><span className='font-medium'>Materia Identificada:</span> {aiResults.identifiedSubject}</p>
                  <p><span className='font-medium'>Recomendaciones:</span></p>
                 <div className="space-y-4">
-                  {suggestedLawyers.suggestedLawyers.map(lawyer => (
-                    <LawyerProfileCard key={lawyer.id} lawyer={lawyer} />
-                  ))}
+                  {aiResults.suggestedLawyers.length > 0 ? (
+                    aiResults.suggestedLawyers.map(lawyer => (
+                      <LawyerProfileCard key={lawyer.id} lawyer={lawyer as AppUser} />
+                    ))
+                  ) : (
+                    <p className="text-muted-foreground text-center py-4">No se encontraron abogados que coincidan con la materia y ubicación.</p>
+                  )}
                 </div>
               </div>
             )}
@@ -155,8 +169,9 @@ export function ClientDashboard() {
                   </SelectContent>
                 </Select>
             </div>
-            <Button onClick={handleManualSearch} className="w-full">
-              <Search className="mr-2" /> Buscar Abogado
+            <Button onClick={handleManualSearch} disabled={lawyersLoading} className="w-full">
+              {lawyersLoading ? <Loader2 className="animate-spin mr-2" /> : <Search className="mr-2" />}
+              {lawyersLoading ? "Cargando..." : "Buscar Abogado"}
             </Button>
             
             {hasSearched && (
@@ -179,5 +194,3 @@ export function ClientDashboard() {
     </div>
   );
 }
-
-    

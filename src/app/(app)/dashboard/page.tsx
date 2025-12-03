@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -6,11 +5,10 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { CaseList } from "@/components/cases/CaseList";
-import type { Case, CaseSubject } from "@/lib/types";
+import type { Case, CaseSubject, User } from "@/lib/types";
 import { UserRole, CASE_SUBJECTS_OPTIONS } from "@/lib/types";
-import { mockCases as initialMockCases, mockUsers } from "@/data/mockData";
 import { useAuth } from "@/hooks/useAuth";
-import { PlusCircle, Search, Filter, Briefcase, BellRing, Users as UsersIcon, ArrowDownUp, ArrowUpDown, Settings, FolderPlus, Building } from "lucide-react";
+import { PlusCircle, Search, Filter, Briefcase, BellRing, Users as UsersIcon, ArrowDownUp, ArrowUpDown, Settings, FolderPlus, Building, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -24,6 +22,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { isFuture, isToday, parseISO } from "date-fns";
 import { ClientDashboard } from "@/components/marketplace/ClientDashboard";
+import { useCollection } from "@/hooks/use-firestore";
+import { db } from "@/lib/firebase";
+import { collection, query, where } from "firebase/firestore";
 
 type SortField = "lastActivityDate" | "clientName" | "nurej" | "createdAt";
 type SortDirection = "asc" | "desc";
@@ -44,31 +45,32 @@ const sortDirectionOptions: { value: SortDirection; label: string }[] = [
 
 
 export default function DashboardPage() {
-  const { currentUser, isAdmin, isLawyer, isSecretary, isClient } = useAuth();
-  const [cases, setCases] = useState<Case[]>([]);
+  const { currentUser, isAdmin, isLawyer, isSecretary, isClient, isLoading: authIsLoading } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [subjectFilter, setSubjectFilter] = useState<string>(ALL_SUBJECTS_FILTER_KEY);
   const [sortField, setSortField] = useState<SortField>("lastActivityDate");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
-  useEffect(() => {
-    if (isClient) return; // Clientes no gestionan casos de esta forma
+  // Firestore data fetching
+  const casesQuery = useMemo(() => {
+    if (!currentUser) return null;
+    if (isClient) return null; // Clients don't see this list
 
-    let userCases = initialMockCases;
-    if (currentUser?.organizationId) {
-      userCases = initialMockCases.filter(c => c.organizationId === currentUser.organizationId);
-      if (currentUser.role === UserRole.LAWYER) {
-        userCases = userCases.filter(c => c.assignedLawyerId === currentUser.id);
-      }
-      // Admins and Secretaries see all cases for their organization.
-    } else if (currentUser?.role === UserRole.LAWYER) { 
-      // Fallback if orgId isn't set but role is lawyer (legacy)
-      userCases = initialMockCases.filter(c => c.assignedLawyerId === currentUser.id);
+    let q = query(collection(db, "cases"), where("organizationId", "==", currentUser.organizationId));
+    if (isLawyer) {
+        q = query(q, where("assignedLawyerId", "==", currentUser.id));
     }
-    setCases(userCases);
-  }, [currentUser, isClient]);
+    return q;
+  }, [currentUser, isClient, isLawyer]);
+
+  const { data: cases, isLoading: casesIsLoading, error: casesError } = useCollection<Case>(casesQuery);
+  const { data: users, isLoading: usersIsLoading } = useCollection<User>(
+    currentUser?.organizationId ? query(collection(db, "users"), where("organizationId", "==", currentUser.organizationId)) : null
+  );
 
   const filteredCases = useMemo(() => {
+    if (!cases) return [];
+
     let sortedCases = [...cases]
       .filter(c => 
         (c.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -76,6 +78,13 @@ export default function DashboardPage() {
          c.cause.toLowerCase().includes(searchTerm.toLowerCase())) &&
         (subjectFilter === ALL_SUBJECTS_FILTER_KEY || c.subject === subjectFilter)
       );
+
+    const getTimestampDate = (timestamp: any): number => {
+        if (!timestamp) return 0;
+        if (typeof timestamp === 'string') return new Date(timestamp).getTime();
+        if (timestamp.toDate) return timestamp.toDate().getTime();
+        return new Date(timestamp.seconds * 1000).getTime();
+    }
 
     sortedCases.sort((a, b) => {
       let valA, valB;
@@ -87,8 +96,8 @@ export default function DashboardPage() {
           break;
         case "lastActivityDate":
         case "createdAt":
-          valA = new Date(a[sortField]).getTime();
-          valB = new Date(b[sortField]).getTime();
+          valA = getTimestampDate(a[sortField]);
+          valB = getTimestampDate(b[sortField]);
           break;
         default: return 0;
       }
@@ -101,22 +110,15 @@ export default function DashboardPage() {
   }, [cases, searchTerm, subjectFilter, sortField, sortDirection]);
 
   const stats = useMemo(() => {
-    if (isClient) return {}; // No hay estadísticas para clientes en esta vista
+    if (isClient || !cases || !users) return {};
 
     const isUserAdminOrSecretary = isAdmin || isSecretary;
-    // Primary stat: all cases in org for admin/secretary, assigned for lawyer
-    const primaryStatCases = isUserAdminOrSecretary 
-      ? cases // Cases are already filtered by org for admin/secretary
-      : cases.filter(c => c.assignedLawyerId === currentUser?.id); 
-    const primaryStatCount = primaryStatCases.length;
     
-    let primaryStatTitle = "Mis Casos Asignados";
-    if (isAdmin) primaryStatTitle = "Total Casos (Organización)";
-    if (isSecretary) primaryStatTitle = "Total Casos (Organización)";
+    const primaryStatCount = cases.length;
+    let primaryStatTitle = isUserAdminOrSecretary ? "Total Casos (Organización)" : "Mis Casos Asignados";
 
-    // Reminders: based on cases visible to the current role
-    const relevantCasesForReminders = isUserAdminOrSecretary ? cases : primaryStatCases;
-    const upcomingRemindersCount = relevantCasesForReminders.reduce((acc, currentCaseItem) => {
+    const upcomingRemindersCount = cases.reduce((acc, currentCaseItem) => {
+      if (!currentCaseItem.reminders) return acc;
       const upcoming = currentCaseItem.reminders.filter(r => {
         const reminderDate = parseISO(r.date);
         return isFuture(reminderDate) || isToday(reminderDate);
@@ -124,16 +126,11 @@ export default function DashboardPage() {
       return acc + upcoming;
     }, 0);
     
-    // Total team members for admin
-    const totalTeamMembersCount = isAdmin && currentUser?.organizationId 
-        ? mockUsers.filter(u => u.organizationId === currentUser.organizationId && (u.role === UserRole.LAWYER || u.role === UserRole.SECRETARY)).length 
-        : undefined;
+    const totalTeamMembersCount = users?.filter(u => (u.role === UserRole.LAWYER || u.role === UserRole.SECRETARY)).length;
     
     let chartData: { name: string; count: number; }[] = [];
-    // Chart data based on all cases in the organization for admin/secretary
-    if (isUserAdminOrSecretary && currentUser?.organizationId) {
-      const orgCasesForChart = initialMockCases.filter(c => c.organizationId === currentUser.organizationId);
-      const casesBySubjectData = orgCasesForChart.reduce((acc, currentCaseItem) => {
+    if (isUserAdminOrSecretary && cases) {
+      const casesBySubjectData = cases.reduce((acc, currentCaseItem) => {
         const subject = currentCaseItem.subject;
         acc[subject] = (acc[subject] || 0) + 1;
         return acc;
@@ -151,7 +148,7 @@ export default function DashboardPage() {
       totalTeamMembersCount,
       chartData
     };
-  }, [cases, isAdmin, isSecretary, currentUser, isClient]);
+  }, [cases, users, isAdmin, isSecretary, isClient]);
 
   const chartConfig = {
     count: { label: "Casos", color: "hsl(var(--primary))" },
@@ -175,6 +172,14 @@ export default function DashboardPage() {
     );
   };
 
+  if (authIsLoading || (casesIsLoading && !isClient) || (usersIsLoading && !isClient)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   if (isClient) {
     return <ClientDashboard />;
   }
@@ -194,7 +199,7 @@ export default function DashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{stats.primaryStatCount}</div>
               <p className="text-xs text-muted-foreground">
-                {isAdmin || isSecretary ? "Casos registrados en su organización" : "Casos actualmente bajo su responsabilidad"}
+                {isAdmin || isSecretary ? "Casos activos en su organización" : "Casos actualmente bajo su responsabilidad"}
               </p>
             </CardContent>
           </Card>
@@ -350,9 +355,7 @@ export default function DashboardPage() {
       <h2 className="text-xl font-semibold mb-4 mt-8 text-foreground">
         {isAdmin ? "Listado de Casos (Organización)" : (isSecretary ? "Listado de Casos (Organización)" : "Mis Casos Asignados")}
       </h2>
-      <CaseList cases={filteredCases} setCases={setCases} />
+      <CaseList cases={filteredCases} />
     </div>
   );
 }
-
-    

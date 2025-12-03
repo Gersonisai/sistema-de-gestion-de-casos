@@ -10,9 +10,10 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { mockUsers } from '@/data/mockData';
-import type { User as AppUser } from '@/lib/types';
 import { UserRole, CaseSubject, CASE_SUBJECTS_OPTIONS } from '@/lib/types';
+import type { User as AppUser } from '@/lib/types';
+import { getDocs, collection, query, where, limit } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const MatchLawyerInputSchema = z.object({
   problemDescription: z.string().describe('La descripción del problema legal del cliente.'),
@@ -83,30 +84,37 @@ const matchLawyerFlow = ai.defineFlow(
     if (!output || !output.identifiedSubject) {
         throw new Error("La IA no pudo determinar la materia del caso.");
     }
-    
-    // 2. Simular la lógica de búsqueda de abogados en mockData
-    const allLawyers = mockUsers.filter(u => u.role === UserRole.LAWYER);
-    
-    // Filtrar abogados por la materia identificada
-    let filteredLawyers = allLawyers.filter(lawyer => 
-        lawyer.specialties?.includes(output.identifiedSubject)
+
+    // 2. Buscar abogados en Firestore que coincidan con la materia.
+    const lawyersRef = collection(db, "users");
+    const q = query(
+      lawyersRef,
+      where("role", "==", UserRole.LAWYER),
+      where("specialties", "array-contains", output.identifiedSubject),
+      // Opcional: filtrar por ubicación si se proporciona. Firestore no soporta queries complejas como 'contains' en strings.
+      // Una solución más robusta usaría Algolia o similar para búsqueda geográfica.
+      // Por ahora, lo filtraremos en el cliente.
+      limit(10) // Traemos hasta 10 para tener variedad.
     );
+
+    const querySnapshot = await getDocs(q);
+    const matchingLawyers = querySnapshot.docs.map(doc => doc.data() as AppUser);
+    
+    let suggestedLawyers = matchingLawyers;
 
     // Opcional: si hay una ubicación, filtrar por ella también
     if (input.clientLocation) {
         const clientLocationLower = input.clientLocation.toLowerCase();
-        const locationFiltered = filteredLawyers.filter(lawyer => 
+        const locationFiltered = matchingLawyers.filter(lawyer => 
             lawyer.location?.toLowerCase().includes(clientLocationLower)
         );
-        // Si encontramos abogados en la misma ubicación, los priorizamos.
-        // Si no, usamos la lista filtrada solo por especialidad.
         if (locationFiltered.length > 0) {
-            filteredLawyers = locationFiltered;
+            suggestedLawyers = locationFiltered;
         }
     }
 
-    // Ordenar aleatoriamente y tomar hasta 3 para la simulación
-    const suggestedLawyers = filteredLawyers
+    // Tomar hasta 3 para la simulación
+    const finalSuggestions = suggestedLawyers
         .sort(() => 0.5 - Math.random()) // Shuffle
         .slice(0, 3);
     
@@ -114,7 +122,7 @@ const matchLawyerFlow = ai.defineFlow(
     return {
         identifiedSubject: output.identifiedSubject,
         reasoning: output.reasoning,
-        suggestedLawyers: suggestedLawyers.map(lawyer => ({ // Mapear al esquema de salida
+        suggestedLawyers: finalSuggestions.map(lawyer => ({ // Mapear al esquema de salida
             id: lawyer.id,
             name: lawyer.name,
             email: lawyer.email,

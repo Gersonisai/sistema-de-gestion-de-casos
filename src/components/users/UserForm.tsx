@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,14 +22,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import type { User } from "@/lib/types"; // App User type
+import type { User } from "@/lib/types";
 import { UserRole, USER_ROLE_NAMES } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-// import { useAuth } from "@/hooks/useAuth"; // Not needed here directly for form logic
 import { Save, Loader2, ArrowLeft } from "lucide-react";
 import { useState } from "react";
-import { mockUsers } from "@/data/mockData"; 
 
 // Schema for creating users (by admin)
 const createUserSchemaByAdmin = z.object({
@@ -102,31 +99,8 @@ export function UserForm({ initialData, onSave, isEditMode }: UserFormProps) {
           description: `El usuario "${values.name}" ha sido ${isEditMode ? 'actualizado' : 'creado'} exitosamente.`,
         });
         
-        // Update mockUsers for immediate UI reflection
-        if (isEditMode && initialData) {
-            const index = mockUsers.findIndex(u => u.id === initialData.id);
-            if (index !== -1) {
-                mockUsers[index] = { 
-                  ...mockUsers[index], 
-                  name: values.name, 
-                  role: values.role, 
-                  // email is not changed in edit mode
-                };
-            }
-        } else if (!isEditMode && result.newUserId) {
-            const userExists = mockUsers.some(u => u.id === result.newUserId);
-            if (!userExists) {
-                mockUsers.push({
-                    id: result.newUserId,
-                    name: values.name,
-                    email: values.email,
-                    role: values.role,
-                    organizationId: initialData?.organizationId, // Or determine based on admin creating it
-                });
-            }
-        }
         router.push("/users");
-        router.refresh(); // Refresh to ensure data is updated across components
+        router.refresh(); 
       } else {
         let specificError = `Ocurrió un error al ${isEditMode ? 'actualizar' : 'crear'} el usuario.`;
         if (result.error?.code === "auth/email-already-in-use" && !isEditMode) {
@@ -269,5 +243,3 @@ export function UserForm({ initialData, onSave, isEditMode }: UserFormProps) {
     </Card>
   );
 }
-
-    

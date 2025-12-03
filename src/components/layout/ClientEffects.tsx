@@ -3,11 +3,17 @@
 
 import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { mockOrganizations } from '@/data/mockData';
-import { THEME_PALETTES, type ThemePaletteId } from '@/lib/types';
+import { THEME_PALETTES, type ThemePaletteId, type Organization } from '@/lib/types';
+import { useDocument } from '@/hooks/use-firestore';
+import { doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function ClientEffects() {
   const { currentUser } = useAuth();
+  
+  // Fetch organization data from Firestore
+  const orgDocRef = currentUser?.organizationId ? doc(db, "organizations", currentUser.organizationId) : null;
+  const { data: organization } = useDocument<Organization>(orgDocRef);
 
   // Effect for Service Worker Registration
   useEffect(() => {
@@ -57,7 +63,7 @@ export function ClientEffects() {
       THEME_PALETTES.forEach(p => root.classList.remove(`theme-${p.id}`));
     };
 
-    if (currentUser && currentUser.organizationId) {
+    if (currentUser && currentUser.organizationId && organization) {
       // Attempt to get org's theme from localStorage (set by admin in settings)
       const storedOrgTheme = localStorage.getItem(`org-theme-${currentUser.organizationId}`) as ThemePaletteId | null;
       
@@ -66,8 +72,7 @@ export function ClientEffects() {
       if (storedOrgTheme && THEME_PALETTES.some(p => p.id === storedOrgTheme)) {
         paletteToApply = storedOrgTheme;
       } else {
-        // Fallback to mockOrganizations if not in localStorage (e.g., first load)
-        const organization = mockOrganizations.find(org => org.id === currentUser.organizationId);
+        // Fallback to the organization data from Firestore
         if (organization && organization.themePalette) {
           paletteToApply = organization.themePalette;
         }
@@ -81,7 +86,7 @@ export function ClientEffects() {
       // If no user or no org, ensure no specific org theme is applied (revert to default)
       clearPaletteClasses();
     }
-  }, [currentUser]);
+  }, [currentUser, organization]);
 
 
   return null; // This component does not render any UI

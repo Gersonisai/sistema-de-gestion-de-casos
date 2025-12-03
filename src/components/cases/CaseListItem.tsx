@@ -1,8 +1,6 @@
-
 "use client";
 
-import type { Case } from "@/lib/types";
-import { UserRole } from "@/lib/types";
+import type { Case, User } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -11,23 +9,52 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { mockUsers } from "@/data/mockData"; 
+import { deleteDoc, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface CaseListItemProps {
   caseItem: Case;
-  onDelete: (caseId: string) => void;
+  assignedLawyer?: User;
 }
 
-export function CaseListItem({ caseItem, onDelete }: CaseListItemProps) {
+export function CaseListItem({ caseItem, assignedLawyer }: CaseListItemProps) {
   const { isAdmin, isLawyer, isSecretary, currentUser } = useAuth();
-  const assignedLawyer = mockUsers.find(u => u.id === caseItem.assignedLawyerId);
+  const { toast } = useToast();
 
   const canEdit = isAdmin || isSecretary || (isLawyer && caseItem.assignedLawyerId === currentUser?.id);
   const canDelete = isAdmin;
 
-  const formattedLastActivityDate = caseItem.lastActivityDate 
-    ? format(parseISO(caseItem.lastActivityDate), "PPP", { locale: es })
-    : "N/A";
+  const getTimestampDate = (timestamp: any): string => {
+    if (!timestamp) return 'N/A';
+    if (typeof timestamp === 'string') return format(parseISO(timestamp), "PPP", { locale: es });
+    if (timestamp.toDate) return format(timestamp.toDate(), "PPP", { locale: es });
+    return format(new Date(timestamp.seconds * 1000), "PPP", { locale: es });
+  }
+
+  const formattedLastActivityDate = getTimestampDate(caseItem.lastActivityDate);
+
+  const handleDelete = async () => {
+    try {
+      await deleteDoc(doc(db, "cases", caseItem.id));
+      toast({ title: "Caso Eliminado", description: "El caso ha sido eliminado exitosamente." });
+      // The parent component listening to the collection will automatically update the UI.
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el caso." });
+    }
+  };
+
 
   return (
     <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
@@ -63,7 +90,7 @@ export function CaseListItem({ caseItem, onDelete }: CaseListItemProps) {
           <CalendarDays className="mr-2 h-4 w-4 text-accent" />
           <strong>Últ. Actividad:</strong> <span className="ml-1">{formattedLastActivityDate}</span>
         </div>
-        {caseItem.fileAttachments.length > 0 && ( // Updated from documentLinks
+        {caseItem.fileAttachments && caseItem.fileAttachments.length > 0 && (
             <div className="flex items-center text-sm text-muted-foreground">
                 <FileText className="mr-2 h-4 w-4 text-accent" />
                 <strong>Archivos:</strong> <span className="ml-1">{caseItem.fileAttachments.length}</span>
@@ -84,9 +111,27 @@ export function CaseListItem({ caseItem, onDelete }: CaseListItemProps) {
           </Button>
         )}
         {canDelete && (
-          <Button variant="destructive" size="sm" onClick={() => onDelete(caseItem.id)}>
-            <Trash2 className="mr-1 h-4 w-4" /> Eliminar
-          </Button>
+           <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm">
+                <Trash2 className="mr-1 h-4 w-4" /> Eliminar
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Está seguro de eliminar este caso?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción no se puede deshacer. El caso será eliminado permanentemente de la base de datos.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                  Eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
       </CardFooter>
     </Card>

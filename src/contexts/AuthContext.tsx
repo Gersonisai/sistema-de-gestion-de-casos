@@ -1,15 +1,14 @@
-
 "use client";
 
 import type { ReactNode } from "react";
 import React, { createContext, useState, useEffect, useCallback } from "react";
 import type { User as AuthUserFromFirebase } from "firebase/auth";
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, updateProfile } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import type { User as AppUser, Organization } from "@/lib/types"; 
 import { UserRole } from "@/lib/types";
-import { mockUsers, mockOrganizations } from "@/data/mockData";
 import { useRouter } from "next/navigation";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 interface AuthContextType {
   currentUser: AppUser | null;
@@ -22,7 +21,8 @@ interface AuthContextType {
     email: string, 
     pass: string, 
     role?: UserRole, 
-    organizationId?: string
+    organizationId?: string,
+    extraData?: Partial<AppUser>
   ) => Promise<{ success: boolean; error?: any; newUserId?: string }>;
   logout: () => void;
   isAdmin: boolean;
@@ -47,38 +47,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setIsLoading(true);
       if (fbUser) {
         setFirebaseUser(fbUser);
-        let appUserProfile = mockUsers.find(u => u.id === fbUser.uid);
+        const userDocRef = doc(db, "users", fbUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
 
-        if (!appUserProfile) {
-          appUserProfile = mockUsers.find(u => u.email === fbUser.email);
-          if (appUserProfile) {
-            appUserProfile.id = fbUser.uid; 
-          }
-        }
-        
-        if (appUserProfile) {
-          appUserProfile.name = fbUser.displayName || appUserProfile.name;
-          appUserProfile.email = fbUser.email!;
-          if (!appUserProfile.organizationId && fbUser.uid === "Uh8GnPZnGkNVpEqXwsPJJtTc8R63") { // Hardcoded System Admin
-             appUserProfile.organizationId = "org_default_admin";
-          }
-          setCurrentUser(appUserProfile);
+        if (userDocSnap.exists()) {
+          setCurrentUser({ id: userDocSnap.id, ...userDocSnap.data() } as AppUser);
         } else {
-           console.warn(`User ${fbUser.email} authenticated via Firebase but not found in mockData. Creating a default profile.`);
-           const fallbackProfile: AppUser = {
-            id: fbUser.uid,
-            email: fbUser.email!,
-            name: fbUser.displayName || "Usuario YASI K'ARI",
-            role: UserRole.CLIENT, // Default new registrations to Client
-          };
-          setCurrentUser(fallbackProfile);
-          if (!mockUsers.some(mu => mu.id === fbUser.uid)) {
-             mockUsers.push(fallbackProfile);
-          }
+          console.warn(`User ${fbUser.email} authenticated but no profile found in Firestore. This might happen during registration.`);
+          // User might be in the process of registering, wait for register function to create doc.
         }
       } else {
         setFirebaseUser(null);
@@ -93,6 +73,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, pass);
+      // onAuthStateChanged will handle setting the user state
       setIsLoading(false);
       return true;
     } catch (error) {
@@ -107,7 +88,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     email: string, 
     pass: string, 
     role: UserRole = UserRole.LAWYER, 
-    organizationId?: string 
+    organizationId?: string,
+    extraData: Partial<AppUser> = {}
   ): Promise<{ success: boolean; error?: any; newUserId?: string }> => {
     setIsLoading(true);
     try {
@@ -115,24 +97,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const fbUser = userCredential.user;
       await updateProfile(fbUser, { displayName: name });
       
-      let appUserProfile = mockUsers.find(u => u.id === fbUser.uid || u.email === email);
-      if (appUserProfile) { 
-        appUserProfile.id = fbUser.uid;
-        appUserProfile.name = name;
-        appUserProfile.role = role;
-        appUserProfile.organizationId = organizationId || appUserProfile.organizationId;
-      } else { 
-        appUserProfile = { 
-          id: fbUser.uid, 
-          name, 
-          email, 
-          role, 
-          organizationId 
-        };
-        mockUsers.push(appUserProfile);
-      }
+      const newUserProfile: AppUser = { 
+        id: fbUser.uid, 
+        name, 
+        email, 
+        role, 
+        organizationId,
+        ...extraData,
+      };
+
+      await setDoc(doc(db, "users", fbUser.uid), newUserProfile);
       
-      setCurrentUser(appUserProfile); 
+      setCurrentUser(newUserProfile); 
       setFirebaseUser(fbUser);
 
       setIsLoading(false);
@@ -157,18 +133,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const fbUser = userCredential.user;
       await updateProfile(fbUser, { displayName: adminName });
 
-      const newOrgId = `org-${Date.now().toString().slice(-6)}`;
-      const newOrganization: Organization = {
-        id: newOrgId,
-        name: organizationName,
-        ownerId: fbUser.uid,
-        plan: plan,
-        themePalette: "default",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      mockOrganizations.push(newOrganization);
-
+      const newOrgId = `org_${Date.now().toString().slice(-6)}`;
+      
       const adminProfile: AppUser = {
         id: fbUser.uid,
         name: adminName,
@@ -176,10 +142,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         role: UserRole.ADMIN,
         organizationId: newOrgId,
       };
-      
-      const existingUserIndex = mockUsers.findIndex(u => u.email === adminEmail);
-      if (existingUserIndex > -1) mockUsers.splice(existingUserIndex, 1);
-      mockUsers.push(adminProfile);
+      await setDoc(doc(db, "users", fbUser.uid), adminProfile);
+
+      const newOrganization: Omit<Organization, 'id'> = {
+        name: organizationName,
+        ownerId: fbUser.uid,
+        plan: plan,
+        themePalette: "default",
+        createdAt: serverTimestamp() as any,
+        updatedAt: serverTimestamp() as any,
+      };
+      await setDoc(doc(db, "organizations", newOrgId), newOrganization);
       
       setCurrentUser(adminProfile); 
       setFirebaseUser(fbUser);
@@ -198,6 +171,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       await firebaseSignOut(auth);
+      // onAuthStateChanged handles state cleanup
       router.push("/"); 
     } catch (error) {
       console.error("Firebase logout error:", error);

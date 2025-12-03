@@ -1,15 +1,12 @@
-
 "use client";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users as UsersIcon, PlusCircle, Edit, Trash2, MoreVertical, KeySquare } from "lucide-react"; 
+import { Users as UsersIcon, PlusCircle, Edit, Trash2, MoreVertical, KeySquare, Loader2, Copy } from "lucide-react"; 
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
-import { mockUsers, mockOrganizations } from "@/data/mockData";
+import { useEffect, useState, useMemo } from "react";
 import type { User, Organization } from "@/lib/types";
 import { UserRole, PLAN_LIMITS, USER_ROLE_NAMES } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -39,88 +36,84 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-// import { Input } from "@/components/ui/input"; // Not used directly
-// import { Label } from "@/components/ui/label"; // Not used directly
-import { Copy } from "lucide-react";
-
+import { useCollection, useDocument } from "@/hooks/use-firestore";
+import { db } from "@/lib/firebase";
+import { collection, query, where, doc, deleteDoc } from "firebase/firestore";
 
 export default function UsersPage() {
   const { isAdmin, isLoading: authIsLoading, currentUser } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const [isClientLoading, setIsClientLoading] = useState(true);
-  const [usersToList, setUsersToList] = useState<User[]>([]);
+  
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [showCodeDialog, setShowCodeDialog] = useState(false);
 
+  // Security check effect
   useEffect(() => {
-    if (!authIsLoading) {
-      if (!isAdmin) {
-        router.replace("/dashboard"); 
-      } else {
-        const orgId = currentUser?.organizationId;
-        if (orgId) {
-            // Admins see users from their own organization, excluding themselves
-            setUsersToList(mockUsers.filter(u => u.organizationId === orgId && u.id !== currentUser?.id));
-        } else {
-            // Fallback for system admin or if orgId is not set (should not happen for org admins)
-            setUsersToList(mockUsers.filter(u => u.id !== currentUser?.id));
-        }
-        setIsClientLoading(false);
-      }
+    if (!authIsLoading && !isAdmin) {
+      router.replace("/dashboard"); 
     }
-  }, [isAdmin, authIsLoading, router, currentUser]);
+  }, [isAdmin, authIsLoading, router]);
+
+  // Fetch users of the current admin's organization
+  const usersQuery = useMemo(() => {
+    if (!currentUser?.organizationId) return null;
+    return query(collection(db, "users"), where("organizationId", "==", currentUser.organizationId));
+  }, [currentUser?.organizationId]);
+  const { data: users, isLoading: usersIsLoading } = useCollection<User>(usersQuery);
+
+  // Fetch organization details to check plan limits
+  const orgDocRef = useMemo(() => {
+    if (!currentUser?.organizationId) return null;
+    return doc(db, "organizations", currentUser.organizationId);
+  }, [currentUser?.organizationId]);
+  const { data: organization, isLoading: orgIsLoading } = useDocument<Organization>(orgDocRef);
+  
+  const usersToList = useMemo(() => {
+    return users?.filter(u => u.id !== currentUser?.id) || [];
+  }, [users, currentUser?.id]);
+
 
   const handleDeleteRequest = (user: User) => {
-    if (user.id === currentUser?.id) {
-      toast({
-        variant: "destructive",
-        title: "Acción no permitida",
-        description: "No puedes eliminar tu propia cuenta de administrador desde esta lista.",
-      });
-      return;
-    }
     setUserToDelete(user);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (userToDelete) {
-      // In a real app, this would call a Firebase function to delete the user from Auth and Firestore
-      const userIndex = mockUsers.findIndex(u => u.id === userToDelete.id);
-      if (userIndex > -1) {
-        mockUsers.splice(userIndex, 1); 
+      // In a real app, this should call a Firebase Function to delete the user from Auth and their associated data.
+      // For this prototype, we'll just delete the user document from Firestore.
+      try {
+        await deleteDoc(doc(db, "users", userToDelete.id));
+        toast({ title: "Usuario Eliminado", description: `El usuario ${userToDelete.name} ha sido eliminado de Firestore.` });
+      } catch (error) {
+        console.error("Error deleting user:", error);
+        toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el usuario." });
+      } finally {
+        setUserToDelete(null);
       }
-      setUsersToList(prevUsers => prevUsers.filter(u => u.id !== userToDelete.id)); 
-      toast({ title: "Usuario Eliminado (Simulación)", description: `El usuario ${userToDelete.name} ha sido eliminado de la lista local.` });
-      setUserToDelete(null);
     }
   };
 
   const handleGenerateInvitationCode = () => {
-    if (!currentUser || !currentUser.organizationId) {
+    if (!currentUser || !organization) {
       toast({ variant: "destructive", title: "Error", description: "No se pudo identificar la organización del administrador." });
       return;
     }
-    const adminOrg = mockOrganizations.find(org => org.id === currentUser.organizationId);
-    if (!adminOrg) {
-      toast({ variant: "destructive", title: "Error", description: "Organización no encontrada." });
-      return;
-    }
 
-    const currentTeamCount = mockUsers.filter(u => u.organizationId === adminOrg.id && (u.role === UserRole.LAWYER || u.role === UserRole.SECRETARY)).length;
-    const planLimits = PLAN_LIMITS[adminOrg.plan] || PLAN_LIMITS.trial_basic; 
+    const currentTeamCount = users?.filter(u => u.role === UserRole.LAWYER || u.role === UserRole.SECRETARY).length || 0;
+    const planLimits = PLAN_LIMITS[organization.plan] || PLAN_LIMITS.trial_basic; 
 
     if (currentTeamCount >= planLimits.maxTeamMembers) { 
       toast({
         variant: "destructive",
         title: "Límite de Miembros del Equipo Alcanzado",
-        description: `Su plan "${adminOrg.plan}" permite un máximo de ${planLimits.maxTeamMembers} miembros. Ya ha alcanzado este límite.`,
+        description: `Su plan "${organization.plan}" permite un máximo de ${planLimits.maxTeamMembers} miembros. Ya ha alcanzado este límite.`,
       });
       return;
     }
 
-    const orgIdPart = adminOrg.id.substring(0, Math.min(adminOrg.id.length, 8));
+    const orgIdPart = organization.id.substring(0, Math.min(organization.id.length, 8));
     const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
     const code = `YASI-${orgIdPart}-${randomPart}`;
     
@@ -143,7 +136,7 @@ export default function UsersPage() {
     return USER_ROLE_NAMES[role] || role;
   };
 
-  if (authIsLoading || isClientLoading) {
+  if (authIsLoading || usersIsLoading || orgIsLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -219,7 +212,6 @@ export default function UsersPage() {
                             <DropdownMenuItem 
                               onClick={() => handleDeleteRequest(user)} 
                               className="flex items-center text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
-                              disabled={user.id === currentUser?.id && user.role === UserRole.ADMIN}
                             >
                               <Trash2 className="mr-2 h-4 w-4" /> Eliminar Usuario
                             </DropdownMenuItem>
@@ -261,9 +253,7 @@ export default function UsersPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>¿Está seguro de eliminar a {userToDelete.name}?</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta acción no se puede deshacer (simulación). El usuario será eliminado de la lista local.
-                En una aplicación real, esto también eliminaría al usuario de Firebase Authentication.
-                Los casos asignados a este usuario (si es abogado) deberán ser reasignados manualmente.
+                Esta acción eliminará la cuenta del usuario de forma permanente. Los casos asignados a este usuario (si es abogado) deberán ser reasignados manualmente. Esta acción no se puede deshacer.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -304,5 +294,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-    

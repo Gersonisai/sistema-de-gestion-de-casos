@@ -1,10 +1,8 @@
-
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useMemo } from "react";
 import { useParams } from "next/navigation";
 import type { User as AppUser } from "@/lib/types";
-import { mockUsers } from "@/data/mockData";
 import { Loader2, AlertTriangle, MapPin, Briefcase, BadgeDollarSign, Star, MessageSquarePlus, Calendar } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,20 +11,18 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import Image from 'next/image';
 import { Separator } from "@/components/ui/separator";
+import { useDocument } from "@/hooks/use-firestore";
+import { db } from "@/lib/firebase";
+import { doc } from "firebase/firestore";
 
 function LawyerProfilePageContent() {
   const params = useParams();
   const lawyerId = params.id as string;
-  const [lawyer, setLawyer] = useState<AppUser | null | undefined>(undefined);
+  
+  const userDocRef = useMemo(() => lawyerId ? doc(db, "users", lawyerId) : null, [lawyerId]);
+  const { data: lawyer, isLoading, error } = useDocument<AppUser>(userDocRef);
 
-  useEffect(() => {
-    if (lawyerId) {
-      const foundLawyer = mockUsers.find(u => u.id === lawyerId && u.role === 'lawyer');
-      setLawyer(foundLawyer || null);
-    }
-  }, [lawyerId]);
-
-  if (lawyer === undefined) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-150px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -34,7 +30,7 @@ function LawyerProfilePageContent() {
     );
   }
 
-  if (lawyer === null) {
+  if (error || !lawyer || lawyer.role !== 'lawyer') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-150px)] text-center">
         <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
@@ -76,8 +72,10 @@ function LawyerProfilePageContent() {
                     <span className="text-muted-foreground ml-2 text-sm">(4.8 de 23 reseñas)</span>
                 </div>
             </div>
-             <Button size="lg" className="md:ml-auto mt-4 md:mt-0">
-                <MessageSquarePlus className="mr-2" /> Contactar Ahora
+             <Button size="lg" className="md:ml-auto mt-4 md:mt-0" asChild>
+                <Link href={`/chat?conversationWith=${lawyer.id}`}>
+                    <MessageSquarePlus className="mr-2" /> Contactar Ahora
+                </Link>
             </Button>
         </div>
         <CardContent className="p-6 md:p-8 space-y-6">
