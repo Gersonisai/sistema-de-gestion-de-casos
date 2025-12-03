@@ -293,16 +293,18 @@ export default function DashboardPage() {
 
       <div className="mb-6 p-4 border rounded-lg bg-card shadow mt-8" id="case-list-section">
         <h3 className="text-lg font-semibold mb-4">Filtrar y Ordenar Casos</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input 
-              type="search"
-              placeholder="Buscar por cliente, NUREJ, causa..."
-              className="pl-10 w-full"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          <div className="lg:col-span-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input 
+                type="search"
+                placeholder="Buscar por cliente, NUREJ, causa..."
+                className="pl-10 w-full"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
           <div>
             <Select value={subjectFilter} onValueChange={setSubjectFilter}>
@@ -318,7 +320,7 @@ export default function DashboardPage() {
               </SelectContent>
             </Select>
           </div>
-          <div>
+          <div className="grid grid-cols-2 gap-2">
             <Select value={sortField} onValueChange={(value) => setSortField(value as SortField)}>
               <SelectTrigger className="w-full">
                 <ArrowUpDown className="mr-2 h-5 w-5 text-muted-foreground" />
@@ -330,8 +332,6 @@ export default function DashboardPage() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
             <Select value={sortDirection} onValueChange={(value) => setSortDirection(value as SortDirection)}>
               <SelectTrigger className="w-full">
                 <ArrowDownUp className="mr-2 h-5 w-5 text-muted-foreground" />

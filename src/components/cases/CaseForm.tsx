@@ -204,8 +204,8 @@ export function CaseForm({ initialData, onSave, onDelete, lawyersForAssignment =
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            {/* Case details fields (NUREJ, Client Name, Cause, etc.) remain the same */}
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Case details fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
@@ -347,13 +347,13 @@ export function CaseForm({ initialData, onSave, onDelete, lawyersForAssignment =
               />
             )}
 
-            {/* Reminders Section - No change */}
-            <div className="space-y-4 pt-6 border-t">
+            {/* Reminders Section */}
+            <div className="space-y-4 pt-4 border-t">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium">Recordatorios</h3>
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button type="button" variant="outline" size="sm"><CalendarPlus className="mr-2 h-4 w-4" /> Añadir Recordatorio</Button>
+                    <Button type="button" variant="outline" size="sm"><CalendarPlus className="mr-2 h-4 w-4" /> Añadir</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
@@ -373,7 +373,7 @@ export function CaseForm({ initialData, onSave, onDelete, lawyersForAssignment =
                           {format(parseISO(reminder.date), "Pp HH:mm", { locale: es })}
                         </p>
                       </div>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteReminder(reminder.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => handleDeleteReminder(reminder.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                     </li>
                   ))}
                 </ul>
@@ -382,21 +382,21 @@ export function CaseForm({ initialData, onSave, onDelete, lawyersForAssignment =
               )}
             </div>
 
-            {/* File Attachments Section - Updated */}
-            <div className="space-y-4 pt-6 border-t">
+            {/* File Attachments Section */}
+            <div className="space-y-4 pt-4 border-t">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium">Archivos Adjuntos</h3>
                  <Dialog>
                   <DialogTrigger asChild>
-                    <Button type="button" variant="outline" size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Adjuntar Archivos</Button>
+                    <Button type="button" variant="outline" size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Adjuntar</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Adjuntar Nuevos Archivos al Caso</DialogTitle>
+                      <DialogTitle>Adjuntar Nuevos Archivos</DialogTitle>
                     </DialogHeader>
                     <DocumentLinkForm 
                         onAddAttachments={handleAddAttachments} 
-                        caseId={initialData?.id || "new-case-placeholder"} // Pass caseId for context
+                        caseId={initialData?.id || "new-case-placeholder"}
                     />
                   </DialogContent>
                 </Dialog>
@@ -405,16 +405,16 @@ export function CaseForm({ initialData, onSave, onDelete, lawyersForAssignment =
                 <ul className="space-y-2">
                   {fileAttachments.map(attachment => (
                     <li key={attachment.id} className="flex justify-between items-center p-3 border rounded-md bg-muted/50 hover:bg-muted/70 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-muted-foreground" />
-                        <span className="font-medium">{attachment.fileName}</span>
-                        {attachment.size && <span className="text-xs text-muted-foreground">({(attachment.size / 1024).toFixed(1)} KB)</span>}
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                        <span className="font-medium truncate">{attachment.fileName}</span>
+                        {attachment.size && <span className="text-xs text-muted-foreground flex-shrink-0">({(attachment.size / 1024).toFixed(1)} KB)</span>}
                       </div>
-                      <div className="flex gap-2">
-                        <Button type="button" variant="ghost" size="sm" onClick={() => handleSimulatedDownload(attachment)} title="Descargar (Simulado)">
+                      <div className="flex gap-1">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => handleSimulatedDownload(attachment)} title="Descargar (Simulado)">
                             <Download className="h-4 w-4"/>
                         </Button>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteAttachment(attachment.id)} title="Eliminar Archivo">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => handleDeleteAttachment(attachment.id)} title="Eliminar Archivo">
                             <Trash2 className="h-4 w-4 text-destructive"/>
                         </Button>
                       </div>
@@ -426,7 +426,7 @@ export function CaseForm({ initialData, onSave, onDelete, lawyersForAssignment =
               )}
             </div>
             
-            <div className="flex justify-end gap-4 pt-8">
+            <div className="flex justify-end gap-4 pt-6">
               {canDeleteCase && (
                  <Button
                     type="button"
@@ -448,7 +448,7 @@ export function CaseForm({ initialData, onSave, onDelete, lawyersForAssignment =
                 ) : (
                   <Save className="mr-2 h-4 w-4" />
                 )}
-                {initialData ? "Guardar Cambios" : "Crear Caso"}
+                {initialData ? "Guardar" : "Crear Caso"}
               </Button>
             </div>
           </form>

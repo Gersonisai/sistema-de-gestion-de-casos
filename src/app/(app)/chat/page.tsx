@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Send, Phone, Video, Users, User as UserIcon } from "lucide-react";
+import { Loader2, Send, Phone, Video, Users, User as UserIcon, ArrowLeft } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,7 @@ export default function ChatPage() {
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [newMessage, setNewMessage] = useState("");
     const [allMessages, setAllMessages] = useState<ChatMessage[]>(mockMessages);
+    const [isMobileConvoView, setIsMobileConvoView] = useState(false);
 
 
     const conversations = useMemo(() => {
@@ -98,7 +99,10 @@ export default function ChatPage() {
         if (requestedConvId && currentUser) {
             const directId = getOneOnOneId(currentUser.id, requestedConvId);
             const exists = conversations.find(c => c.id === directId || c.id === requestedConvId);
-            setActiveConversationId(exists ? exists.id : null);
+            if (exists) {
+                setActiveConversationId(exists.id);
+                setIsMobileConvoView(true); // Auto-open conversation on mobile if one is requested in URL
+            }
         } else if (conversations.length > 0 && !activeConversationId) {
             setActiveConversationId(conversations[0].id);
         }
@@ -140,12 +144,20 @@ export default function ChatPage() {
     if (authIsLoading) {
         return <div className="flex h-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
     }
+    
+    const handleConversationSelect = (convoId: string) => {
+        setActiveConversationId(convoId);
+        setIsMobileConvoView(true);
+    };
 
     return (
         <div className="h-full flex flex-col">
-            <Card className="flex-1 grid grid-cols-[250px_1fr] md:grid-cols-[300px_1fr] h-full overflow-hidden">
+            <Card className="flex-1 grid md:grid-cols-[300px_1fr] h-full overflow-hidden">
                 {/* Conversations Sidebar */}
-                <div className="border-r flex flex-col">
+                <div className={cn(
+                    "border-r flex-col",
+                    isMobileConvoView ? "hidden md:flex" : "flex"
+                )}>
                     <div className="p-4 border-b">
                         <h2 className="text-xl font-semibold tracking-tight">Conversaciones</h2>
                     </div>
@@ -153,7 +165,7 @@ export default function ChatPage() {
                         {conversations.map(convo => (
                             <button
                                 key={convo.id}
-                                onClick={() => setActiveConversationId(convo.id)}
+                                onClick={() => handleConversationSelect(convo.id)}
                                 className={cn(
                                     "w-full text-left p-3 flex items-center gap-3 transition-colors hover:bg-muted",
                                     activeConversationId === convo.id && "bg-muted font-semibold"
@@ -172,12 +184,18 @@ export default function ChatPage() {
                 </div>
 
                 {/* Chat Area */}
-                <div className="flex flex-col h-full">
+                <div className={cn(
+                    "flex-col h-full",
+                    isMobileConvoView ? "flex" : "hidden md:flex"
+                )}>
                     {activeConversationDetails ? (
                         <>
                             {/* Chat Header */}
                             <div className="p-4 border-b flex justify-between items-center">
                                 <div className="flex items-center gap-3">
+                                     <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsMobileConvoView(false)}>
+                                        <ArrowLeft className="h-5 w-5" />
+                                    </Button>
                                      <Avatar className="h-10 w-10">
                                         <AvatarImage src={activeConversationDetails.avatarUrl} alt={activeConversationDetails.name} />
                                         <AvatarFallback>
@@ -216,7 +234,7 @@ export default function ChatPage() {
                                                     : "bg-muted"
                                             )}>
                                                 <p className="font-bold text-sm mb-1">{msg.senderId === currentUser?.id ? "Tú" : msg.senderName}</p>
-                                                <p className="text-base">{msg.content}</p>
+                                                <p className="text-base break-words">{msg.content}</p>
                                                 <p className="text-xs opacity-75 mt-2 text-right">
                                                     {format(parseISO(msg.timestamp), 'p', { locale: es })}
                                                 </p>
@@ -244,7 +262,7 @@ export default function ChatPage() {
                     ) : (
                         <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                             <MessageSquare className="h-16 w-16 mb-4" />
-                            <p>Seleccione una conversación para empezar a chatear</p>
+                            <p className="text-center">Seleccione una conversación para empezar a chatear.</p>
                         </div>
                     )}
                 </div>
